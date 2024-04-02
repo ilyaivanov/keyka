@@ -8,6 +8,7 @@
 #include "string.c"
 #include "format.c"
 #include "font.c"
+#include "item.c"
 
 #include "performance.c"
 
@@ -182,13 +183,6 @@ void ReportAt(i32 rowIndex, char* label, u32 val, char* metric)
         x += currentFont->charWidth;
     }
 }
-typedef struct Item
-{
-    char* title;
-    struct Item* firstChild;
-    struct Item* nextSibling;
-} Item;
-
 
 void UpdateAndDraw(Item* root)
 {
@@ -215,14 +209,8 @@ void UpdateAndDraw(Item* root)
 
         if(current->firstChild)
         {
-            i32 childrenCount = 1;
-            Item* child = current->firstChild;
-            while (child)
-            {
-                childrenCount++;
-                child = child->nextSibling;
-            }
-
+            i32 childrenCount = ItemGetTotalChildrenCount(current);
+            
             PaintRect(&canvas, x - 1, y + iconSize / 2 +  squareToLine, PX(2), currentFont->charHeight * lineHeight * childrenCount - iconSize - squareToLine * 2, 0x333333);
 
             stack[++currentItem] = current;
@@ -232,10 +220,11 @@ void UpdateAndDraw(Item* root)
             current = current->nextSibling;
         } else 
         {
-            if(currentItem > 0)
-                current = stack[currentItem--]->nextSibling;
-            else 
-                current = 0;
+            Item* itemInStack = stack[currentItem--]->nextSibling;
+            while(!itemInStack && currentItem >= 0)
+                itemInStack = stack[currentItem--]->nextSibling;
+            
+            current = itemInStack;
         }
 
         y += currentFont->charHeight * lineHeight;
@@ -246,10 +235,11 @@ void UpdateAndDraw(Item* root)
 void WinMainCRTStartup()
 {
     PreventWindowsDPIScaling();
+    timeBeginPeriod(1);
 
     HWND window = OpenWindow(OnEvent, 0x222222);
     HDC dc = GetDC(window);
-    Arena arena = CreateArena(Megabytes(44));
+    Arena arena = CreateArena(Megabytes(54));
 
     InitFontSystem();
     InitFont(&consolasFont14, FontInfoClearType("Consolas", 14, 0xfff0f0f0, 0x00000000), &arena);
@@ -260,23 +250,47 @@ void WinMainCRTStartup()
     InitPerf();
 
     Item root = {0};
-    root.firstChild = (Item*)ArenaPush(&arena, sizeof(Item));
-    root.firstChild->title = "First";
 
-    root.firstChild->nextSibling = (Item*)ArenaPush(&arena, sizeof(Item));
-    root.firstChild->nextSibling->title = "Second";
+    char* firstLevel[] = { "One", "Two", "Solar Fields", "Three", "Fuck", "Me" };
+    ItemSetChildren(&root, firstLevel, ArrayLength(firstLevel), &arena);
 
-    root.firstChild->nextSibling->firstChild = (Item*)ArenaPush(&arena, sizeof(Item));
-    root.firstChild->nextSibling->firstChild->title = "Second 1";
+    Item* solarFields = root.firstChild->nextSibling->nextSibling;
 
-    root.firstChild->nextSibling->firstChild->nextSibling = (Item*)ArenaPush(&arena, sizeof(Item));
-    root.firstChild->nextSibling->firstChild->nextSibling->title = "Second 2";
+    char* solarFieldsChildren[] = { "Albums", "Compilations", "Singles" };
+    ItemSetChildren(solarFields, solarFieldsChildren, ArrayLength(solarFieldsChildren), &arena);
+    
+    char* solarFieldsAlbums[] = { 
+        "2013 Origin # 02",
+        "2001 Reflective Frequencies",
+        "2003 Blue Moon Station",
+        "2005 Extended",
+        "2005 Leaving Home",
+        "2007 EarthShine",
+        "2009 Mirror's Edge (Solar Fields & Lisa Miskovsky)",
+        "2009 Movements",
+        "2010 Altered Second Movements",
+        "2010 Origin # 01",
+        "2011 Until We Meet The Sky",
+        "2012 Random Friday",
+    };
 
-    root.firstChild->nextSibling->nextSibling = (Item*)ArenaPush(&arena, sizeof(Item));
-    root.firstChild->nextSibling->nextSibling->title = "Third";
+    ItemSetChildren(solarFields->firstChild, solarFieldsAlbums, ArrayLength(solarFieldsAlbums), &arena);
 
-    root.firstChild->nextSibling->nextSibling->nextSibling = (Item*)ArenaPush(&arena, sizeof(Item));
-    root.firstChild->nextSibling->nextSibling->nextSibling->title = "Fourth";
+    char* solarFieldsCompilations[] = { 
+        "2013 GREEN",
+        "2014 BLUE",
+        "2014 RED"
+    };
+    ItemSetChildren(solarFields->firstChild->nextSibling, solarFieldsCompilations, ArrayLength(solarFieldsCompilations), &arena);
+
+
+    char* solarFieldsSingles[] = { 
+        "2008 Cocoon Moon",
+        "2008 On A Wind",
+        "2013 Cluster"
+    };
+    ItemSetChildren(solarFields->firstChild->nextSibling->nextSibling, solarFieldsSingles, ArrayLength(solarFieldsSingles), &arena);
+
 
     while(isRunning)
     {
@@ -296,9 +310,10 @@ void WinMainCRTStartup()
         u32 usPerFrame = EndMetric(Overall);
 
         currentFont = &consolasFont14;
-        ReportAt(3, "Memory", usMemory, "us");
-        ReportAt(2, "Drawing", usDraw, "us");
-        ReportAt(1, "DiBits", GetMicrosecondsFor(DiBits), "us");
+        ReportAt(4, "Memory", usMemory, "us");
+        ReportAt(3, "Drawing", usDraw, "us");
+        ReportAt(2, "DiBits", GetMicrosecondsFor(DiBits), "us");
+        ReportAt(1, "Sleep", GetMicrosecondsFor(SleepMetric), "us");
         ReportAt(0, "Overall", usPerFrame, "us");
 
         StartMetric(DiBits);
@@ -311,7 +326,9 @@ void WinMainCRTStartup()
 
 
         //TODO: proper sleep timing, currently just burning the CPU, dont forget about timeBeginPeriod
+        StartMetric(SleepMetric);
         Sleep(10);
+        EndMetric(SleepMetric);
     }
 
     ExitProcess(0);

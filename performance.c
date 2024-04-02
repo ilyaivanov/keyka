@@ -8,6 +8,7 @@ typedef enum PerfMetric
     Memory,
     Draw,
     DiBits,
+    SleepMetric,
     TotalMetrics
 } PerfMetric;
 
