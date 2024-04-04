@@ -278,6 +278,14 @@ void UpdateAndDraw(Item* root)
         i32 x = padding + currentItem * step;
         u32 rectColor = current == selectedItem ? 0xaaffaa : 0xaaaaaa;
         PaintRect(&canvas, x - iconSize / 2, y - iconSize / 2, iconSize, iconSize, rectColor);
+
+        if(!current->firstChild)
+        {
+            f32 border = (1);
+            f32 b2 = border * 2;
+            PaintRect(&canvas, x - iconSize / 2 + border, y - iconSize / 2 + border, iconSize - b2, iconSize - b2, 0x000000);
+        }
+
         i32 textX = x + iconSize / 2 + iconToTextSpace;
 
         if(current == selectedItem)
