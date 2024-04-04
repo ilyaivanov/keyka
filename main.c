@@ -175,6 +175,27 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
                     if(mode == ModeInsert)
                         mode = ModeNormal;
                 break;
+                case 'W': 
+                    if((mode == ModeNormal || ctrlPressed))
+                    {
+                        i32 nextWord = IndexAfter(&selectedItem->title, cursorPosition, ' ');
+                        if(nextWord >= 0)
+                            cursorPosition = nextWord + 1;
+                        else 
+                            cursorPosition = selectedItem->title.size - 1;
+                    }
+                break;
+                case 'B': 
+                    if((mode == ModeNormal || ctrlPressed))
+                    {
+                        i32 nextWord = IndexBefore(&selectedItem->title, cursorPosition - 1, ' ');
+                        if(nextWord >= 0)
+                            cursorPosition = nextWord + 1;
+                        else 
+                            cursorPosition = 0;
+                    }
+                break;
+
                 case 'Y': 
 
                     if((mode == ModeNormal || ctrlPressed) && cursorPosition > 0)
