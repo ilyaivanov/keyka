@@ -2,6 +2,7 @@ One
   Foo
     Nested one
     Assume this
+  bar
 one
   foo
     nested one

@@ -34,11 +34,17 @@ bool isJustSwitchedModeToInsert = 0;
 Mode mode = ModeNormal;
 FontData consolasFont14;
 FontData segoeUiFont14;
+FontData segoeUiFont14Selected;
 float appTimeSec = 0;
 
 V2i screenOffset;
 V2i mouse;
 bool isMovingViaMouse = 0;
+
+Item root;
+Item* selectedItem;
+
+
 
 BITMAPINFO bitmapInfo;
 
@@ -139,6 +145,54 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
                     isFullscreen = !isFullscreen;
                     SetFullscreen(window, isFullscreen);
                 break;
+                case 'J':
+                    if(selectedItem->firstChild)
+                        selectedItem = selectedItem->firstChild;
+                    else if (selectedItem->nextSibling)
+                        selectedItem = selectedItem->nextSibling;
+                    else 
+                    {
+                        Item* parentWithSibling = selectedItem->parent;
+                        while(parentWithSibling && !parentWithSibling->nextSibling)
+                            parentWithSibling = parentWithSibling->parent;
+                        
+                        if(parentWithSibling)
+                            selectedItem = parentWithSibling->nextSibling;
+                    }
+                break;
+                case 'K':
+                    if(selectedItem->parent->firstChild == selectedItem && selectedItem->parent->parent)
+                    {
+                        selectedItem = selectedItem->parent;
+                    }
+                    else if(root.firstChild != selectedItem)
+                    {
+                        Item* prevSibling = selectedItem->parent->firstChild;
+
+                        while(prevSibling->nextSibling != selectedItem)
+                            prevSibling = prevSibling->nextSibling;
+
+                        if(prevSibling->firstChild)
+                        {
+                            //select most nested
+                            Item* last = prevSibling->firstChild;
+                            do
+                            {
+                                while(last->nextSibling)
+                                    last = last->nextSibling;
+
+                                if(last->firstChild)
+                                    last = last->firstChild;
+                            }while (last->firstChild || last->nextSibling);
+                            selectedItem = last;
+                        }
+                        else 
+                        {
+                            selectedItem = prevSibling;
+                        }
+                    }
+                    
+                break;
             }
         break; 
     }
@@ -210,8 +264,14 @@ void UpdateAndDraw(Item* root)
     while(current)
     {
         i32 x = padding + currentItem * step;
-        PaintRect(&canvas, x - iconSize / 2, y - iconSize / 2, iconSize, iconSize, 0xaaaaaa);
+        u32 rectColor = current == selectedItem ? 0xaaffaa : 0xaaaaaa;
+        PaintRect(&canvas, x - iconSize / 2, y - iconSize / 2, iconSize, iconSize, rectColor);
         i32 textX = x + iconSize / 2 + iconToTextSpace;
+
+        if(current == selectedItem)
+            currentFont = &segoeUiFont14Selected;
+        else 
+            currentFont = &segoeUiFont14;
 
         DrawLabelMiddleLeft(textX, y, current->title);
 
@@ -252,14 +312,15 @@ void WinMainCRTStartup()
     InitFontSystem();
     InitFont(&consolasFont14, FontInfoClearType("Consolas", 14, 0xfff0f0f0, 0x00000000), &arena);
     InitFont(&segoeUiFont14, FontInfoClearType("Segoe UI", 13, 0xfff0f0f0, 0x00000000), &arena);
+    InitFont(&segoeUiFont14Selected, FontInfoClearType("Segoe UI", 13, 0xffb0ffb0, 0x00000000), &arena);
 
     MSG msg;
     InitPerf();
 
-    Item root = {0};
 
     FileContent file = ReadMyFileImp(FILE_PATH);
     ParseFileContent(&root, file, &arena);
+    selectedItem = root.firstChild;
 
     while(isRunning)
     {
