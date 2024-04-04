@@ -21,7 +21,7 @@ typedef struct ItemEntry
 } ItemEntry;
 
 
-void ParseFileContent(Item *root, FileContent file, Arena* arena)
+void ParseFileContent(Item *root, StringBuffer file, Arena* arena)
 {
     ItemEntry slices[512];
     i32 slicesCount = 0;
@@ -66,7 +66,7 @@ void ParseFileContent(Item *root, FileContent file, Arena* arena)
         Item* current = (Item*) ArenaPush(arena, sizeof(Item));
         ItemEntry entry = slices[i];
         
-        current->title = StringBufferInit(entry.end - entry.start + 2, file.content + entry.start);
+        current->title = StringBufferInit(entry.end - entry.start + 1, file.content + entry.start);
 
         if(stackLevels[currentInStack] < entry.level)
         {

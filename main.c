@@ -27,6 +27,7 @@ u32 screenWidth;
 u32 screenHeight;
 MyBitmap canvas;
 bool isRunning = 1;
+bool isSaved = 1;
 bool isFullscreen = 0;
 bool isSpecialSymbolsShown = 0;
 bool isPerfShown = 0;
@@ -36,6 +37,7 @@ Mode mode = ModeNormal;
 FontData consolasFont14;
 FontData segoeUiFont14;
 FontData segoeUiFont14Selected;
+FontData segoeUiFont14Background;
 FontData segoeUiFont14SelectedInsert;
 float appTimeSec = 0;
 
@@ -95,16 +97,54 @@ inline void PaintRect(MyBitmap *destination, i32 offsetX, i32 offsetY, u32 width
 }
 
 
+ void SaveStateIntoFile()
+{
+    StringBuffer s = StringBufferEmptyWithCapacity(256);
 
-// void InsertChartUnderCursor(StringBuffer* buffer, WPARAM ch)
-// {
-//     WPARAM code = ch == '\r' ? '\n' : ch;
-//     InsertCharAt(buffer, cursor.pos, code);
-//     cursor.pos++;
-//     // UpdateCursorPosition(buffer, cursor.cursorIndex + 1);
+    //Traversal
+    Item* stack[512] = {root.firstChild};
+    i32 stackLevels[512] = {0};
+    i32 currentItem = 0;
 
-//     // cursor.selectionStart = SELECTION_NONE;
-// }
+    Item* item = root.firstChild;
+    while(item)
+    {
+        for(int i = 0; i < stackLevels[currentItem]; i++)
+        {
+            InsertCharAtEnd(&s, ' ');
+            InsertCharAtEnd(&s, ' ');
+        }
+        StringBuffer_AppendStrBuff(&s, &item->title);
+        InsertCharAtEnd(&s, '\r');
+        InsertCharAtEnd(&s, '\n');
+
+        if(item->firstChild)
+        {
+            stack[++currentItem] = item->firstChild;
+            stackLevels[currentItem] = stackLevels[currentItem - 1] + 1;
+            item = item->firstChild;
+        }
+        else if(item->nextSibling)
+        {
+            item = item->nextSibling;
+        }
+        else
+        {
+            Item* itemInStack = stack[--currentItem];
+            while(currentItem >= 0 && !itemInStack->nextSibling)
+                itemInStack = stack[--currentItem];
+
+                
+            if(itemInStack && itemInStack->nextSibling)
+                item = itemInStack->nextSibling;
+            else 
+                item = 0;
+
+        }
+    }
+
+    WriteMyFile(FILE_PATH, s.content, s.size);
+}
 
 
 void ChangeSelection(Item* item)
@@ -160,6 +200,7 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
             {
                 InsertCharAt(&selectedItem->title, cursorPosition, wParam);
                 cursorPosition++;
+                isSaved = 0;
             }
         break;
 
@@ -201,15 +242,28 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
                 break;
 
                 case 'Y': 
-
                     if((mode == ModeNormal || ctrlPressed) && cursorPosition > 0)
                     {
                         RemoveCharAt(&selectedItem->title, cursorPosition - 1);
                         cursorPosition--;
                     }
                 break;
+                case VK_BACK:
+                    if (cursorPosition > 0)
+                    {
+                        RemoveCharAt(&selectedItem->title, cursorPosition - 1);
+                        cursorPosition--;
+                    }
+                break;
+                case VK_DELETE:
+                    if (cursorPosition < selectedItem->title.size)
+                    {
+                        RemoveCharAt(&selectedItem->title, cursorPosition);
+                        cursorPosition--;
+                    }
+                break;
                 case 'U': 
-                    if((mode == ModeNormal || ctrlPressed) && cursorPosition < selectedItem->title.size - 1)
+                    if((mode == ModeNormal || ctrlPressed) && cursorPosition < selectedItem->title.size)
                     {
                         RemoveCharAt(&selectedItem->title, cursorPosition);
                     }
@@ -226,7 +280,7 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
                         cursorPosition--;
                 break;
                 case 'R':
-                    if((mode == ModeNormal || ctrlPressed) && cursorPosition < selectedItem->title.size - 2)
+                    if((mode == ModeNormal || ctrlPressed) && cursorPosition < selectedItem->title.size)
                         cursorPosition++;
                 break;
                 case 'H':
@@ -297,6 +351,13 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
                         }
                     }
                     
+                break;
+                case 'S':
+                    if (ctrlPressed)
+                    {
+                        SaveStateIntoFile();
+                        isSaved = 1;
+                    }
                 break;
             }
         break; 
@@ -426,6 +487,9 @@ void DrawTree(Item* root)
         y += currentFont->charHeight * lineHeight;
     }
 
+    currentFont = &segoeUiFont14Background;
+    char* state = isSaved ? "Saved" : "Modified";
+    DrawLabelMiddleLeft(canvas.width / 2, canvas.height - currentFont->charHeight / 2, state, -1);
 }
 
 void WinMainCRTStartup()
@@ -442,12 +506,13 @@ void WinMainCRTStartup()
     InitFont(&segoeUiFont14, FontInfoClearType("Segoe UI", 13, 0xfff0f0f0, 0x00000000), &arena);
     InitFont(&segoeUiFont14Selected, FontInfoClearType("Segoe UI", 13, 0xffb0ffb0, 0x00000000), &arena);
     InitFont(&segoeUiFont14SelectedInsert, FontInfoClearType("Segoe UI", 13, 0xffb0b0ff, 0x00000000), &arena);
+    InitFont(&segoeUiFont14Background, FontInfoClearType("Segoe UI", 13, 0xff808080, 0x00000000), &arena);
 
     MSG msg;
     InitPerf();
 
 
-    FileContent file = ReadMyFileImp(FILE_PATH);
+    StringBuffer file = ReadFileIntoDoubledSizedBuffer(FILE_PATH);
     ParseFileContent(&root, file, &arena);
     selectedItem = root.firstChild;
 

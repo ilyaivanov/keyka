@@ -11,6 +11,7 @@ typedef struct StringBuffer {
 
 inline void PlaceLineEnd(StringBuffer *buffer)
 {
+    // new line doesn't count is part of the size. Not sure if this is right
     if(buffer->content)
         *(buffer->content + buffer->size) = '\0';
 }
@@ -62,6 +63,11 @@ void InsertCharAt(StringBuffer *buffer, i32 at, i32 ch)
     PlaceLineEnd(buffer);
 }
 
+inline void InsertCharAtEnd(StringBuffer *buffer, i32 ch)
+{
+    InsertCharAt(buffer, buffer->size, ch);
+}
+
 
 void RemoveCharAt(StringBuffer *buffer, i32 at)
 {
@@ -108,6 +114,39 @@ StringBuffer StringBufferInit(i32 size, char* content)
     }
     PlaceLineEnd(&res);
     return res;
+}
+
+StringBuffer StringBufferEmptyWithCapacity(i32 capacity)
+{
+    StringBuffer res = {
+        .capacity = capacity,
+        .size = 0,
+        .content = 0
+    }; 
+    res.content = VirtualAllocateMemory(res.capacity);
+    PlaceLineEnd(&res);
+    return res;
+}
+
+void StringBuffer_AppendStr(StringBuffer* buffer, char* str)
+{
+    //TODO: this is slow, better to calc length of str and move bytes once, not per char in str
+    char* ch = str;
+    while(*ch)
+    {
+        InsertCharAt(buffer, buffer->size, *ch);
+        ch++;
+    }
+}
+void StringBuffer_AppendStrBuff(StringBuffer* buffer, StringBuffer* bufferToAppend)
+{
+    //TODO: this is slow, better to calc length of str and move bytes once, not per char in str
+    char* ch = bufferToAppend->content;
+    while(*ch)
+    {
+        InsertCharAt(buffer, buffer->size, *ch);
+        ch++;
+    }
 }
 
 i32 IndexAfter(StringBuffer* buffer, i32 after, char ch)
