@@ -20,6 +20,51 @@ typedef struct ItemEntry
     u32 flags;
 } ItemEntry;
 
+i32 ItemGetTotalChildrenCount(Item* parent)
+{
+    //Traversal
+    if(!parent->firstChild)
+        return 0;
+
+    Item* stack[512] = {parent->firstChild};
+    i32 currentItem = 0;
+    i32 res = 0;
+    Item* item = stack[currentItem];
+
+    while (item)
+    {
+        res++;
+        if (item->firstChild && !item->isClosed)
+        {
+            stack[++currentItem] = item->firstChild;
+            item = item->firstChild;
+        }
+        else if (item->nextSibling)
+        {
+            item = item->nextSibling;
+            stack[currentItem] = item;
+        }
+        else
+        {
+            if (currentItem == 0)
+                item = 0;
+            else
+            {
+                Item *itemInStack = stack[--currentItem];
+                while (currentItem >= 0 && !itemInStack->nextSibling)
+                    itemInStack = stack[--currentItem];
+
+                if (itemInStack && itemInStack->nextSibling)
+                    item = itemInStack->nextSibling;
+                else
+                    item = 0;
+            }
+        }
+    }
+
+    return res;
+}
+
 
 void ParseFileContent(Item *root, StringBuffer file, Arena* arena)
 {
@@ -94,4 +139,54 @@ void ParseFileContent(Item *root, StringBuffer file, Arena* arena)
             stackLevels[currentInStack] = entry.level;
         }
     }
+}
+
+
+ void SaveStateIntoFile(Item* root, char* path)
+{
+    StringBuffer s = StringBufferEmptyWithCapacity(256);
+
+    //Traversal
+    Item* stack[512] = {root->firstChild};
+    i32 stackLevels[512] = {0};
+    i32 currentItem = 0;
+
+    Item* item = stack[currentItem];
+    while(item)
+    {
+        for(int i = 0; i < stackLevels[currentItem]; i++)
+        {
+            InsertCharAtEnd(&s, ' ');
+            InsertCharAtEnd(&s, ' ');
+        }
+        StringBuffer_AppendStrBuff(&s, &item->title);
+        InsertCharAtEnd(&s, '\r');
+        InsertCharAtEnd(&s, '\n');
+
+        if(item->firstChild)
+        {
+            stack[++currentItem] = item->firstChild;
+            stackLevels[currentItem] = stackLevels[currentItem - 1] + 1;
+            item = item->firstChild;
+        }
+        else if(item->nextSibling)
+        {
+            item = item->nextSibling;
+        }
+        else
+        {
+            Item* itemInStack = stack[--currentItem];
+            while(currentItem >= 0 && !itemInStack->nextSibling)
+                itemInStack = stack[--currentItem];
+
+                
+            if(itemInStack && itemInStack->nextSibling)
+                item = itemInStack->nextSibling;
+            else 
+                item = 0;
+
+        }
+    }
+
+    WriteMyFile(path, s.content, s.size);
 }

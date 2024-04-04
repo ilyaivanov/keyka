@@ -97,54 +97,7 @@ inline void PaintRect(MyBitmap *destination, i32 offsetX, i32 offsetY, u32 width
 }
 
 
- void SaveStateIntoFile()
-{
-    StringBuffer s = StringBufferEmptyWithCapacity(256);
 
-    //Traversal
-    Item* stack[512] = {root.firstChild};
-    i32 stackLevels[512] = {0};
-    i32 currentItem = 0;
-
-    Item* item = root.firstChild;
-    while(item)
-    {
-        for(int i = 0; i < stackLevels[currentItem]; i++)
-        {
-            InsertCharAtEnd(&s, ' ');
-            InsertCharAtEnd(&s, ' ');
-        }
-        StringBuffer_AppendStrBuff(&s, &item->title);
-        InsertCharAtEnd(&s, '\r');
-        InsertCharAtEnd(&s, '\n');
-
-        if(item->firstChild)
-        {
-            stack[++currentItem] = item->firstChild;
-            stackLevels[currentItem] = stackLevels[currentItem - 1] + 1;
-            item = item->firstChild;
-        }
-        else if(item->nextSibling)
-        {
-            item = item->nextSibling;
-        }
-        else
-        {
-            Item* itemInStack = stack[--currentItem];
-            while(currentItem >= 0 && !itemInStack->nextSibling)
-                itemInStack = stack[--currentItem];
-
-                
-            if(itemInStack && itemInStack->nextSibling)
-                item = itemInStack->nextSibling;
-            else 
-                item = 0;
-
-        }
-    }
-
-    WriteMyFile(FILE_PATH, s.content, s.size);
-}
 
 
 void ChangeSelection(Item* item)
@@ -355,7 +308,7 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
                 case 'S':
                     if (ctrlPressed)
                     {
-                        SaveStateIntoFile();
+                        SaveStateIntoFile(&root, FILE_PATH);
                         isSaved = 1;
                     }
                 break;
@@ -466,7 +419,7 @@ void DrawTree(Item* root)
 
         if(current->firstChild && !current->isClosed)
         {
-            i32 childrenCount = 1; //ItemGetTotalChildrenCount(current);
+            i32 childrenCount = ItemGetTotalChildrenCount(current);
             
             PaintRect(&canvas, x - 1, y + iconSize / 2 + squareToLine, PX(2), currentFont->charHeight * lineHeight * childrenCount, 0x333333);
 
