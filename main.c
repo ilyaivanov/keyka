@@ -145,8 +145,20 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
                     isFullscreen = !isFullscreen;
                     SetFullscreen(window, isFullscreen);
                 break;
+                case 'H':
+                    if(selectedItem->firstChild && !selectedItem->isClosed)
+                        selectedItem->isClosed = 1;
+                    else if(selectedItem->parent->parent)
+                        selectedItem = selectedItem->parent;
+                break;
+                case 'L': 
+                    if(selectedItem->isClosed)
+                        selectedItem->isClosed = 0;
+                    else if(selectedItem->firstChild)
+                        selectedItem = selectedItem->firstChild;
+                break;
                 case 'J':
-                    if(selectedItem->firstChild)
+                    if(selectedItem->firstChild && !selectedItem->isClosed)
                         selectedItem = selectedItem->firstChild;
                     else if (selectedItem->nextSibling)
                         selectedItem = selectedItem->nextSibling;
@@ -172,7 +184,7 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
                         while(prevSibling->nextSibling != selectedItem)
                             prevSibling = prevSibling->nextSibling;
 
-                        if(prevSibling->firstChild)
+                        if(prevSibling->firstChild && !prevSibling->isClosed)
                         {
                             //select most nested
                             Item* last = prevSibling->firstChild;
@@ -181,7 +193,7 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
                                 while(last->nextSibling)
                                     last = last->nextSibling;
 
-                                if(last->firstChild)
+                                if(last->firstChild && !prevSibling->isClosed)
                                     last = last->firstChild;
                             }while (last->firstChild || last->nextSibling);
                             selectedItem = last;
@@ -275,7 +287,7 @@ void UpdateAndDraw(Item* root)
 
         DrawLabelMiddleLeft(textX, y, current->title);
 
-        if(current->firstChild)
+        if(current->firstChild && !current->isClosed)
         {
             i32 childrenCount = 1; //ItemGetTotalChildrenCount(current);
             

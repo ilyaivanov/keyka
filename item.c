@@ -9,6 +9,7 @@ typedef struct Item
     struct Item* firstChild;
     struct Item* nextSibling;
     struct Item* parent;
+    bool isClosed;
 } Item;
 
 typedef struct ItemEntry
