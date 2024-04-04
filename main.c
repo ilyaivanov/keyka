@@ -29,6 +29,7 @@ MyBitmap canvas;
 bool isRunning = 1;
 bool isFullscreen = 0;
 bool isSpecialSymbolsShown = 0;
+bool isPerfShown = 0;
 bool isJustSwitchedModeToInsert = 0;
 
 Mode mode = ModeNormal;
@@ -169,6 +170,9 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
                 case VK_F11: 
                     isFullscreen = !isFullscreen;
                     SetFullscreen(window, isFullscreen);
+                break;
+                case VK_F9: 
+                    isPerfShown = !isPerfShown;
                 break;
                 case VK_ESCAPE: 
                 case VK_RETURN: 
@@ -356,7 +360,7 @@ void ReportAt(i32 rowIndex, char* label, u32 val, char* metric)
     }
 }
 
-void UpdateAndDraw(Item* root)
+void DrawTree(Item* root)
 {
     currentFont = &segoeUiFont14;
     i32 step = PX(20);
@@ -468,17 +472,20 @@ void WinMainCRTStartup()
         u32 usMemory = EndMetric(Memory);
 
         StartMetric(Draw);
-        UpdateAndDraw(&root);
+        DrawTree(&root);
         u32 usDraw = EndMetric(Draw);
 
         u32 usPerFrame = EndMetric(Overall);
 
-        currentFont = &consolasFont14;
-        ReportAt(4, "Memory", usMemory, "us");
-        ReportAt(3, "Drawing", usDraw, "us");
-        ReportAt(2, "DiBits", GetMicrosecondsFor(DiBits), "us");
-        ReportAt(1, "Sleep", GetMicrosecondsFor(SleepMetric), "us");
-        ReportAt(0, "Overall", usPerFrame, "us");
+        if (isPerfShown)
+        {
+            currentFont = &consolasFont14;
+            ReportAt(4, "Memory", usMemory, "us");
+            ReportAt(3, "Drawing", usDraw, "us");
+            ReportAt(2, "DiBits", GetMicrosecondsFor(DiBits), "us");
+            ReportAt(1, "Sleep", GetMicrosecondsFor(SleepMetric), "us");
+            ReportAt(0, "Overall", usPerFrame, "us");
+        }
 
         StartMetric(DiBits);
         StretchDIBits(dc, 0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, canvas.pixels, &bitmapInfo, DIB_RGB_COLORS, SRCCOPY);
