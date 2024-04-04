@@ -12,6 +12,8 @@
 
 #include "performance.c"
 
+#define FILE_PATH "../tasks.txt"
+
 typedef enum Mode
 {
     ModeNormal,
@@ -39,7 +41,6 @@ V2i mouse;
 bool isMovingViaMouse = 0;
 
 BITMAPINFO bitmapInfo;
-StringBuffer buffer;
 
 inline void CopyBitmapRectTo(MyBitmap *sourceT, MyBitmap *destination, u32 offsetX, u32 offsetY)
 {
@@ -132,6 +133,13 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
         break;
 
         case WM_KEYDOWN:
+            switch(wParam)
+            {
+                case VK_F11: 
+                    isFullscreen = !isFullscreen;
+                    SetFullscreen(window, isFullscreen);
+                break;
+            }
         break; 
     }
     return DefWindowProc(window, message, wParam, lParam);
@@ -140,7 +148,7 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 void DrawLabelMiddleLeft(i32 x, i32 y, char* label)
 {
     char* ch = label;
-    i32 middleY = y - currentFont->charHeight / 2 - 1; // - 1 because for the better visual quality, but will break for bigger fontsize
+    i32 middleY = y - currentFont->charHeight / 2 - 3; // - 1 because for the better visual quality, but will break for bigger fontsize
     while (*ch)
     {
         MyBitmap *texture = &currentFont->textures[*ch];
@@ -188,7 +196,7 @@ void UpdateAndDraw(Item* root)
 {
     currentFont = &segoeUiFont14;
     i32 step = PX(20);
-    i32 padding = PX(10);
+    i32 padding = PX(30);
     i32 y = padding;
     i32 iconSize = PX(6);
     i32 iconToTextSpace = PX(6);
@@ -209,9 +217,9 @@ void UpdateAndDraw(Item* root)
 
         if(current->firstChild)
         {
-            i32 childrenCount = ItemGetTotalChildrenCount(current);
+            i32 childrenCount = 1; //ItemGetTotalChildrenCount(current);
             
-            PaintRect(&canvas, x - 1, y + iconSize / 2 +  squareToLine, PX(2), currentFont->charHeight * lineHeight * childrenCount - iconSize - squareToLine * 2, 0x333333);
+            PaintRect(&canvas, x - 1, y + iconSize / 2 + squareToLine, PX(2), currentFont->charHeight * lineHeight * childrenCount, 0x333333);
 
             stack[++currentItem] = current;
             current = current->firstChild;
@@ -245,52 +253,13 @@ void WinMainCRTStartup()
     InitFont(&consolasFont14, FontInfoClearType("Consolas", 14, 0xfff0f0f0, 0x00000000), &arena);
     InitFont(&segoeUiFont14, FontInfoClearType("Segoe UI", 13, 0xfff0f0f0, 0x00000000), &arena);
 
-    // buffer = ReadFileIntoDoubledSizedBuffer("..\\progress.txt");
     MSG msg;
     InitPerf();
 
     Item root = {0};
 
-    char* firstLevel[] = { "One", "Two", "Solar Fields", "Three", "Fuck", "Me" };
-    ItemSetChildren(&root, firstLevel, ArrayLength(firstLevel), &arena);
-
-    Item* solarFields = root.firstChild->nextSibling->nextSibling;
-
-    char* solarFieldsChildren[] = { "Albums", "Compilations", "Singles" };
-    ItemSetChildren(solarFields, solarFieldsChildren, ArrayLength(solarFieldsChildren), &arena);
-    
-    char* solarFieldsAlbums[] = { 
-        "2013 Origin # 02",
-        "2001 Reflective Frequencies",
-        "2003 Blue Moon Station",
-        "2005 Extended",
-        "2005 Leaving Home",
-        "2007 EarthShine",
-        "2009 Mirror's Edge (Solar Fields & Lisa Miskovsky)",
-        "2009 Movements",
-        "2010 Altered Second Movements",
-        "2010 Origin # 01",
-        "2011 Until We Meet The Sky",
-        "2012 Random Friday",
-    };
-
-    ItemSetChildren(solarFields->firstChild, solarFieldsAlbums, ArrayLength(solarFieldsAlbums), &arena);
-
-    char* solarFieldsCompilations[] = { 
-        "2013 GREEN",
-        "2014 BLUE",
-        "2014 RED"
-    };
-    ItemSetChildren(solarFields->firstChild->nextSibling, solarFieldsCompilations, ArrayLength(solarFieldsCompilations), &arena);
-
-
-    char* solarFieldsSingles[] = { 
-        "2008 Cocoon Moon",
-        "2008 On A Wind",
-        "2013 Cluster"
-    };
-    ItemSetChildren(solarFields->firstChild->nextSibling->nextSibling, solarFieldsSingles, ArrayLength(solarFieldsSingles), &arena);
-
+    FileContent file = ReadMyFileImp(FILE_PATH);
+    ParseFileContent(&root, file, &arena);
 
     while(isRunning)
     {

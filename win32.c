@@ -101,11 +101,7 @@ void SetFullscreen(HWND window, i32 isFullscreen)
 // File IO
 //
 
-typedef struct FileContent
-{
-    char *content;
-    i32 size;
-} FileContent;
+
 
 
 FileContent ReadMyFileImp(char* path)

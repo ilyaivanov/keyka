@@ -52,3 +52,9 @@ inline V2i V2iDiff(V2i v1, V2i v2)
 {
     return (V2i){v1.x - v2.x, v1.y - v2.y};
 }
+
+typedef struct FileContent
+{
+    char *content;
+    i32 size;
+} FileContent;
