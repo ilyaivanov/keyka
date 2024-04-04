@@ -2,10 +2,11 @@
 
 #include "types.h"
 #include "arena.c"
+#include "string.c"
 
 typedef struct Item
 {
-    char* title;
+    StringBuffer title;
     struct Item* firstChild;
     struct Item* nextSibling;
     struct Item* parent;
@@ -41,7 +42,6 @@ void ParseFileContent(Item *root, FileContent file, Arena* arena)
             isReadingLevel = 0;
         }
 
-
         if(*(file.content + i) == '\n')
         {
             ItemEntry entry = {.start = lineStart + currentLevel, .end = i - 1, .level = currentLevel };
@@ -66,16 +66,7 @@ void ParseFileContent(Item *root, FileContent file, Arena* arena)
         Item* current = (Item*) ArenaPush(arena, sizeof(Item));
         ItemEntry entry = slices[i];
         
-        char* title = (char*) ArenaPush(arena, entry.end - entry.start + 2);
-        char* ch = title;
-        for(i32 i = entry.start; i <= entry.end; i++)
-        {
-            *ch = *(file.content + i);
-            ch++;
-        }
-        *ch = '\0';
-        
-        current->title = title;
+        current->title = StringBufferInit(entry.end - entry.start + 2, file.content + entry.start);
 
         if(stackLevels[currentInStack] < entry.level)
         {

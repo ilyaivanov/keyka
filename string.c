@@ -92,6 +92,24 @@ StringBuffer ReadFileIntoDoubledSizedBuffer(char *path)
     return res;
 }
 
+StringBuffer StringBufferInit(i32 size, char* content)
+{
+    StringBuffer res = {
+        .capacity = size * 2,
+        .size = size,
+        .content = 0
+    }; 
+    res.content = VirtualAllocateMemory(res.capacity);
+    char* ch = res.content;
+    for(i32 i = 0; i < size; i++)
+    {
+        *ch = *(content + i);
+        ch++;
+    }
+    PlaceLineEnd(&res);
+    return res;
+}
+
 i32 IndexAfter(StringBuffer* buffer, i32 after, char ch)
 {
     for(int i = after + 1; i < buffer->size; i++)
