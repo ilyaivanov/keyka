@@ -212,7 +212,6 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
                     if (cursorPosition < selectedItem->title.size)
                     {
                         RemoveCharAt(&selectedItem->title, cursorPosition);
-                        cursorPosition--;
                     }
                 break;
                 case 'U': 
