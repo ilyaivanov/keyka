@@ -3,11 +3,6 @@
 #include "types.h"
 #include "win32.c"
 
-typedef struct StringBuffer {
-    char *content;
-    i32 size;
-    i32 capacity;
-} StringBuffer;
 
 inline void PlaceLineEnd(StringBuffer *buffer)
 {

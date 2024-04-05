@@ -58,3 +58,18 @@ typedef struct FileContent
     char *content;
     i32 size;
 } FileContent;
+
+typedef struct StringBuffer {
+    char *content;
+    i32 size;
+    i32 capacity;
+} StringBuffer;
+
+typedef struct Item
+{
+    StringBuffer title;
+    struct Item* firstChild;
+    struct Item* nextSibling;
+    struct Item* parent;
+    bool isClosed;
+} Item;

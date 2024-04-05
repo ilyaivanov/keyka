@@ -9,6 +9,7 @@
 #include "format.c"
 #include "font.c"
 #include "item.c"
+#include "itemMovement.c"
 
 #include "performance.c"
 
@@ -55,6 +56,7 @@ i32 ignoreNextCharEvent = 0;
 u32 cursorPosition = 0;
 i32 ctrlPressed = 0;
 i32 isShiftPressed = 0;
+i32 isAltPressed = 0;
 
 BITMAPINFO bitmapInfo;
 
@@ -106,6 +108,275 @@ void ChangeSelection(Item* item)
 {
     selectedItem = item;
     cursorPosition = 0;
+}
+
+inline void OnKeyDown(HWND window, char key)
+{
+    switch (key)
+    {
+    case VK_F11:
+        isFullscreen = !isFullscreen;
+        SetFullscreen(window, isFullscreen);
+        break;
+    case VK_F9:
+        isPerfShown = !isPerfShown;
+        break;
+    case VK_ESCAPE:
+    case VK_RETURN:
+        if (mode == ModeInsert)
+            mode = ModeNormal;
+        break;
+    case 'D':
+        if (mode == ModeNormal)
+        {
+            // how do I free memory in arena such that it is usable
+            // this is a memory leak currently, but in linear arena I have no easy way to handle this now
+            if (selectedItem->parent->firstChild == selectedItem)
+            {
+                if (selectedItem->parent->firstChild->nextSibling)
+                {
+                    selectedItem->parent->firstChild = selectedItem->parent->firstChild->nextSibling;
+                    selectedItem = selectedItem->parent->firstChild;
+                }
+                else
+                {
+                    selectedItem->parent->firstChild = 0;
+                    selectedItem = selectedItem->parent;
+                }
+            }
+            else
+            {
+                Item *prev = selectedItem->parent->firstChild;
+                while (prev->nextSibling != selectedItem)
+                    prev = prev->nextSibling;
+
+                prev->nextSibling = selectedItem->nextSibling;
+
+                if (selectedItem->nextSibling)
+                    selectedItem = selectedItem->nextSibling;
+                else
+                    selectedItem = prev;
+            }
+        }
+        break;
+    case 'O':
+        if (mode == ModeNormal)
+        {
+            Item *newItem = (Item *)ArenaPush(&arena, sizeof(Item));
+            newItem->title = StringBufferEmptyWithCapacity(4);
+            if (selectedItem == &root)
+            {
+                root.firstChild = newItem;
+            }
+            else
+            {
+                if (isShiftPressed)
+                {
+                    if (selectedItem->parent->firstChild == selectedItem)
+                    {
+                        Item *first = selectedItem->parent->firstChild;
+                        selectedItem->parent->firstChild = newItem;
+                        newItem->nextSibling = first;
+                    }
+                    else
+                    {
+                        Item *prev = selectedItem->parent->firstChild;
+                        while (prev->nextSibling != selectedItem)
+                            prev = prev->nextSibling;
+
+                        prev->nextSibling = newItem;
+                        newItem->nextSibling = selectedItem;
+                    }
+                    newItem->parent = selectedItem->parent;
+                }
+                else if (ctrlPressed)
+                {
+                    if (selectedItem->firstChild)
+                        newItem->nextSibling = selectedItem->firstChild;
+
+                    selectedItem->firstChild = newItem;
+                    newItem->parent = selectedItem;
+                }
+                else
+                {
+                    Item *next = selectedItem->nextSibling;
+                    selectedItem->nextSibling = newItem;
+                    newItem->nextSibling = next;
+                    newItem->parent = selectedItem->parent;
+                }
+            }
+
+            selectedItem = newItem;
+
+            cursorPosition = 0;
+            mode = ModeInsert;
+
+            ignoreNextCharEvent = 1;
+        }
+        break;
+    case 'W':
+        if ((mode == ModeNormal || ctrlPressed))
+        {
+            i32 nextWord = IndexAfter(&selectedItem->title, cursorPosition, ' ');
+            if (nextWord >= 0)
+                cursorPosition = nextWord + 1;
+            else
+                cursorPosition = selectedItem->title.size - 1;
+        }
+        break;
+    case 'B':
+        if ((mode == ModeNormal || ctrlPressed))
+        {
+            i32 nextWord = IndexBefore(&selectedItem->title, cursorPosition - 1, ' ');
+            if (nextWord >= 0)
+                cursorPosition = nextWord + 1;
+            else
+                cursorPosition = 0;
+        }
+        break;
+
+    case 'Y':
+        if ((mode == ModeNormal || ctrlPressed) && cursorPosition > 0)
+        {
+            RemoveCharAt(&selectedItem->title, cursorPosition - 1);
+            cursorPosition--;
+        }
+        break;
+    case VK_BACK:
+        if (cursorPosition > 0)
+        {
+            RemoveCharAt(&selectedItem->title, cursorPosition - 1);
+            cursorPosition--;
+        }
+        break;
+    case VK_DELETE:
+        if (cursorPosition < selectedItem->title.size)
+        {
+            RemoveCharAt(&selectedItem->title, cursorPosition);
+        }
+        break;
+    case 'U':
+        if ((mode == ModeNormal || ctrlPressed) && cursorPosition < selectedItem->title.size)
+        {
+            RemoveCharAt(&selectedItem->title, cursorPosition);
+        }
+        break;
+    case 'I':
+        if (mode == ModeNormal)
+        {
+            mode = ModeInsert;
+            ignoreNextCharEvent = 1;
+        }
+        break;
+    case 'E':
+        if ((mode == ModeNormal || ctrlPressed) && cursorPosition > 0)
+            cursorPosition--;
+        break;
+    case 'R':
+        if ((mode == ModeNormal || ctrlPressed) && cursorPosition < selectedItem->title.size)
+            cursorPosition++;
+        break;
+    case 'H':
+        if (mode == ModeInsert)
+            return;
+
+        if(isAltPressed)
+            MoveItemLeft(selectedItem);
+        else 
+        {
+            if (selectedItem->firstChild && !selectedItem->isClosed)
+                selectedItem->isClosed = 1;
+            else if (selectedItem->parent->parent)
+                ChangeSelection(selectedItem->parent);
+        }
+
+        break;
+    case 'L':
+        if (mode == ModeInsert)
+            return;
+
+        if(isAltPressed)
+            MoveItemRight(selectedItem);
+        else 
+        {
+            if (selectedItem->isClosed)
+                selectedItem->isClosed = 0;
+            else if (selectedItem->firstChild)
+                ChangeSelection(selectedItem->firstChild);
+        }
+        break;
+    case 'J':
+        if (mode == ModeInsert)
+            return;
+
+        if (isAltPressed)
+            MoveItemDown(selectedItem);
+        else
+        {
+            if (selectedItem->firstChild && !selectedItem->isClosed)
+                ChangeSelection(selectedItem->firstChild);
+            else if (selectedItem->nextSibling)
+                ChangeSelection(selectedItem->nextSibling);
+            else
+            {
+                Item *parentWithSibling = selectedItem->parent;
+                while (parentWithSibling && !parentWithSibling->nextSibling)
+                    parentWithSibling = parentWithSibling->parent;
+
+                if (parentWithSibling)
+                    ChangeSelection(parentWithSibling->nextSibling);
+            }
+        }
+        break;
+    case 'K':
+        if (mode == ModeInsert)
+            return;
+
+        if (isAltPressed)
+            MoveItemUp(selectedItem);
+        else
+        {
+            if (selectedItem->parent->firstChild == selectedItem && selectedItem->parent->parent)
+            {
+                ChangeSelection(selectedItem->parent);
+            }
+            else if (root.firstChild != selectedItem)
+            {
+                Item *prevSibling = selectedItem->parent->firstChild;
+
+                while (prevSibling->nextSibling != selectedItem)
+                    prevSibling = prevSibling->nextSibling;
+
+                if (prevSibling->firstChild && !prevSibling->isClosed)
+                {
+                    // select most nested
+                    Item *last = prevSibling->firstChild;
+                    do
+                    {
+                        while (last->nextSibling)
+                            last = last->nextSibling;
+
+                        if (last->firstChild && !prevSibling->isClosed)
+                            last = last->firstChild;
+                    } while (last->firstChild || last->nextSibling);
+                    ChangeSelection(last);
+                }
+                else
+                {
+                    ChangeSelection(prevSibling);
+                }
+            }
+        }
+
+        break;
+    case 'S':
+        if (ctrlPressed)
+        {
+            SaveStateIntoFile(&root, FILE_PATH);
+            isSaved = 1;
+        }
+        break;
+    }
 }
 
 LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
@@ -161,248 +432,6 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 
         case WM_KEYDOWN:
         
-            switch(wParam)
-            {
-                case VK_F11: 
-                    isFullscreen = !isFullscreen;
-                    SetFullscreen(window, isFullscreen);
-                break;
-                case VK_F9: 
-                    isPerfShown = !isPerfShown;
-                break;
-                case VK_ESCAPE: 
-                case VK_RETURN: 
-                    if(mode == ModeInsert)
-                        mode = ModeNormal;
-                break;
-                case 'D':
-                    if (mode == ModeNormal)
-                    {
-                        // how do I free memory in arena such that it is usable
-                        // this is a memory leak currently, but in linear arena I have no easy way to handle this now
-                        if (selectedItem->parent->firstChild == selectedItem)
-                        {
-                            if (selectedItem->parent->firstChild->nextSibling)
-                            {
-                                selectedItem->parent->firstChild = selectedItem->parent->firstChild->nextSibling;
-                                selectedItem = selectedItem->parent->firstChild;
-                            }
-                            else
-                            {
-                                selectedItem->parent->firstChild = 0;
-                                selectedItem = selectedItem->parent;
-                            }
-                        }
-                        else
-                        {
-                            Item *prev = selectedItem->parent->firstChild;
-                            while (prev->nextSibling != selectedItem)
-                                prev = prev->nextSibling;
-
-                            prev->nextSibling = selectedItem->nextSibling;
-
-                            if (selectedItem->nextSibling)
-                                selectedItem = selectedItem->nextSibling;
-                            else
-                                selectedItem = prev;
-                        }
-                    }
-                break;
-                case 'O':
-                    if(mode == ModeNormal)
-                    {
-                        Item* newItem = (Item*) ArenaPush(&arena, sizeof(Item));
-                        newItem->title = StringBufferEmptyWithCapacity(4);
-                        if(selectedItem == &root)
-                        {
-                            root.firstChild = newItem;
-                        }
-                        else 
-                        {
-                            if(isShiftPressed)
-                            {
-                                if(selectedItem->parent->firstChild == selectedItem)
-                                {
-                                    Item* first = selectedItem->parent->firstChild;
-                                    selectedItem->parent->firstChild = newItem;
-                                    newItem->nextSibling = first;
-                                }
-                                else 
-                                {
-                                    Item* prev = selectedItem->parent->firstChild;
-                                    while(prev->nextSibling != selectedItem)
-                                        prev = prev->nextSibling;
-
-                                    prev->nextSibling = newItem;
-                                    newItem->nextSibling = selectedItem;
-                                }
-                                newItem->parent = selectedItem->parent;
-                            }
-                            else if(ctrlPressed)
-                            {
-                                if(selectedItem->firstChild)
-                                    newItem->nextSibling = selectedItem->firstChild;
-
-                                selectedItem->firstChild = newItem;
-                                newItem->parent = selectedItem;
-                            }
-                            else
-                            {
-                                Item* next = selectedItem->nextSibling;
-                                selectedItem->nextSibling = newItem;
-                                newItem->nextSibling = next;
-                                newItem->parent = selectedItem->parent;
-                            }
-                        }
-
-
-                        selectedItem = newItem;
-
-                        cursorPosition = 0;
-                        mode = ModeInsert;
-
-                        ignoreNextCharEvent = 1;
-                    }
-                break;
-                case 'W': 
-                    if((mode == ModeNormal || ctrlPressed))
-                    {
-                        i32 nextWord = IndexAfter(&selectedItem->title, cursorPosition, ' ');
-                        if(nextWord >= 0)
-                            cursorPosition = nextWord + 1;
-                        else 
-                            cursorPosition = selectedItem->title.size - 1;
-                    }
-                break;
-                case 'B': 
-                    if((mode == ModeNormal || ctrlPressed))
-                    {
-                        i32 nextWord = IndexBefore(&selectedItem->title, cursorPosition - 1, ' ');
-                        if(nextWord >= 0)
-                            cursorPosition = nextWord + 1;
-                        else 
-                            cursorPosition = 0;
-                    }
-                break;
-
-                case 'Y': 
-                    if((mode == ModeNormal || ctrlPressed) && cursorPosition > 0)
-                    {
-                        RemoveCharAt(&selectedItem->title, cursorPosition - 1);
-                        cursorPosition--;
-                    }
-                break;
-                case VK_BACK:
-                    if (cursorPosition > 0)
-                    {
-                        RemoveCharAt(&selectedItem->title, cursorPosition - 1);
-                        cursorPosition--;
-                    }
-                break;
-                case VK_DELETE:
-                    if (cursorPosition < selectedItem->title.size)
-                    {
-                        RemoveCharAt(&selectedItem->title, cursorPosition);
-                    }
-                break;
-                case 'U': 
-                    if((mode == ModeNormal || ctrlPressed) && cursorPosition < selectedItem->title.size)
-                    {
-                        RemoveCharAt(&selectedItem->title, cursorPosition);
-                    }
-                break;
-                case 'I': 
-                    if(mode == ModeNormal)
-                    {
-                        mode = ModeInsert;
-                        ignoreNextCharEvent = 1;
-                    }
-                break;
-                case 'E':
-                    if((mode == ModeNormal || ctrlPressed) && cursorPosition > 0)
-                        cursorPosition--;
-                break;
-                case 'R':
-                    if((mode == ModeNormal || ctrlPressed) && cursorPosition < selectedItem->title.size)
-                        cursorPosition++;
-                break;
-                case 'H':
-                    if(mode == ModeInsert) return DefWindowProc(window, message, wParam, lParam);
-
-                    if(selectedItem->firstChild && !selectedItem->isClosed)
-                        selectedItem->isClosed = 1;
-                    else if(selectedItem->parent->parent)
-                        ChangeSelection(selectedItem->parent);
-                    
-                break;
-                case 'L': 
-                    if(mode == ModeInsert) return DefWindowProc(window, message, wParam, lParam);
-
-                    if(selectedItem->isClosed)
-                        selectedItem->isClosed = 0;
-                    else if(selectedItem->firstChild)
-                        ChangeSelection(selectedItem->firstChild);
-                break;
-                case 'J':
-                    if(mode == ModeInsert) return DefWindowProc(window, message, wParam, lParam);
-                
-                    if(selectedItem->firstChild && !selectedItem->isClosed)
-                        ChangeSelection(selectedItem->firstChild);
-                    else if (selectedItem->nextSibling)
-                        ChangeSelection(selectedItem->nextSibling);
-                    else 
-                    {
-                        Item* parentWithSibling = selectedItem->parent;
-                        while(parentWithSibling && !parentWithSibling->nextSibling)
-                            parentWithSibling = parentWithSibling->parent;
-                        
-                        if(parentWithSibling)
-                            ChangeSelection(parentWithSibling->nextSibling);
-                    }
-                break;
-                case 'K':
-                    if(mode == ModeInsert) return DefWindowProc(window, message, wParam, lParam);
-
-                    if(selectedItem->parent->firstChild == selectedItem && selectedItem->parent->parent)
-                    {
-                        ChangeSelection(selectedItem->parent);
-                    }
-                    else if(root.firstChild != selectedItem)
-                    {
-                        Item* prevSibling = selectedItem->parent->firstChild;
-
-                        while(prevSibling->nextSibling != selectedItem)
-                            prevSibling = prevSibling->nextSibling;
-
-                        if(prevSibling->firstChild && !prevSibling->isClosed)
-                        {
-                            //select most nested
-                            Item* last = prevSibling->firstChild;
-                            do
-                            {
-                                while(last->nextSibling)
-                                    last = last->nextSibling;
-
-                                if(last->firstChild && !prevSibling->isClosed)
-                                    last = last->firstChild;
-                            }while (last->firstChild || last->nextSibling);
-                            ChangeSelection(last);
-                        }
-                        else 
-                        {
-                            ChangeSelection(prevSibling);
-                        }
-                    }
-                    
-                break;
-                case 'S':
-                    if (ctrlPressed)
-                    {
-                        SaveStateIntoFile(&root, FILE_PATH);
-                        isSaved = 1;
-                    }
-                break;
-            }
         break; 
     }
     return DefWindowProc(window, message, wParam, lParam);
@@ -563,7 +592,6 @@ void WinMainCRTStartup()
     {
         while(PeekMessageA(&msg, 0, 0, 0, PM_REMOVE))
         {
-            TranslateMessage(&msg);
 
             if (msg.message == WM_KEYDOWN || msg.message == WM_SYSKEYDOWN)
             {
@@ -571,6 +599,14 @@ void WinMainCRTStartup()
                     ctrlPressed = 1;
                 else if(msg.wParam == VK_SHIFT)
                     isShiftPressed = 1;
+                else if(msg.wParam == VK_MENU)
+                    isAltPressed = 1;
+
+                OnKeyDown(window, msg.wParam);
+                    
+                // prevent OS handling keys like ALT + J
+                if (isAltPressed && msg.wParam != VK_F4)
+                    continue;
             }
             if (msg.message == WM_KEYUP || msg.message == WM_SYSKEYUP)
             {
@@ -578,7 +614,11 @@ void WinMainCRTStartup()
                     ctrlPressed = 0;
                 else if(msg.wParam == VK_SHIFT)
                     isShiftPressed = 0;
+                else if(msg.wParam == VK_MENU)
+                    isAltPressed = 0;
             }
+
+            TranslateMessage(&msg);
             DispatchMessageA(&msg);
         }
         StartMetric(Memory);

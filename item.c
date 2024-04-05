@@ -4,15 +4,6 @@
 #include "arena.c"
 #include "string.c"
 
-typedef struct Item
-{
-    StringBuffer title;
-    struct Item* firstChild;
-    struct Item* nextSibling;
-    struct Item* parent;
-    bool isClosed;
-} Item;
-
 typedef struct ItemEntry
 {
     i32 start, end, level;
@@ -55,7 +46,10 @@ i32 ItemGetTotalChildrenCount(Item* parent)
                     itemInStack = stack[--currentItem];
 
                 if (itemInStack && itemInStack->nextSibling)
+                {
                     item = itemInStack->nextSibling;
+                    stack[currentItem] = item;
+                }
                 else
                     item = 0;
             }
