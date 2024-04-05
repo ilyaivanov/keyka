@@ -142,7 +142,8 @@ void ParseFileContent(Item *root, StringBuffer file, Arena* arena)
 }
 
 
- void SaveStateIntoFile(Item* root, char* path)
+
+void SaveStateIntoFile(Item* root, char* path)
 {
     StringBuffer s = StringBufferEmptyWithCapacity(256);
 
@@ -172,6 +173,7 @@ void ParseFileContent(Item *root, StringBuffer file, Arena* arena)
         else if(item->nextSibling)
         {
             item = item->nextSibling;
+            stack[currentItem] = item;
         }
         else
         {
@@ -181,7 +183,10 @@ void ParseFileContent(Item *root, StringBuffer file, Arena* arena)
 
                 
             if(itemInStack && itemInStack->nextSibling)
+            {
                 item = itemInStack->nextSibling;
+                stack[currentItem] = item;
+            }
             else 
                 item = 0;
 

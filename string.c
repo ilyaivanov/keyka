@@ -43,7 +43,8 @@ inline void MoveMyMemory(char *source, char *dest, int length)
 
 void DoubleCapacityIfFull(StringBuffer *buffer)
 {
-    if(buffer->size >= buffer->capacity)
+    // - 1 is because I will need to append a zero char at the end
+    if(buffer->size >= buffer->capacity - 1)
     {
         char *currentStr = buffer->content;
         buffer->capacity = (buffer->capacity == 0) ? 4 : (buffer->capacity * 2);
