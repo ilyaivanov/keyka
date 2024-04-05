@@ -100,10 +100,6 @@ inline void PaintRect(MyBitmap *destination, i32 offsetX, i32 offsetY, u32 width
     }
 }
 
-
-
-
-
 void ChangeSelection(Item* item)
 {
     selectedItem = item;
@@ -131,32 +127,17 @@ inline void OnKeyDown(HWND window, char key)
         {
             // how do I free memory in arena such that it is usable
             // this is a memory leak currently, but in linear arena I have no easy way to handle this now
-            if (selectedItem->parent->firstChild == selectedItem)
-            {
-                if (selectedItem->parent->firstChild->nextSibling)
-                {
-                    selectedItem->parent->firstChild = selectedItem->parent->firstChild->nextSibling;
-                    selectedItem = selectedItem->parent->firstChild;
-                }
-                else
-                {
-                    selectedItem->parent->firstChild = 0;
-                    selectedItem = selectedItem->parent;
-                }
-            }
-            else
-            {
-                Item *prev = selectedItem->parent->firstChild;
-                while (prev->nextSibling != selectedItem)
-                    prev = prev->nextSibling;
+            Item* prev = GetItemPrevSibling(selectedItem);
+            RemoveItemFromTree(selectedItem);
 
-                prev->nextSibling = selectedItem->nextSibling;
-
-                if (selectedItem->nextSibling)
-                    selectedItem = selectedItem->nextSibling;
-                else
-                    selectedItem = prev;
-            }
+            if(selectedItem->nextSibling)
+                selectedItem = selectedItem->nextSibling;
+            else if (prev)
+                selectedItem = prev;
+            else if(IsRoot(selectedItem->parent))
+                selectedItem = 0;
+            else 
+                selectedItem = selectedItem->parent;
         }
         break;
     case 'O':
@@ -164,46 +145,16 @@ inline void OnKeyDown(HWND window, char key)
         {
             Item *newItem = (Item *)ArenaPush(&arena, sizeof(Item));
             newItem->title = StringBufferEmptyWithCapacity(4);
-            if (selectedItem == &root)
-            {
-                root.firstChild = newItem;
-            }
+            if (!selectedItem)
+                InsertItemAsFirstChild(&root, newItem);
             else
             {
                 if (isShiftPressed)
-                {
-                    if (selectedItem->parent->firstChild == selectedItem)
-                    {
-                        Item *first = selectedItem->parent->firstChild;
-                        selectedItem->parent->firstChild = newItem;
-                        newItem->nextSibling = first;
-                    }
-                    else
-                    {
-                        Item *prev = selectedItem->parent->firstChild;
-                        while (prev->nextSibling != selectedItem)
-                            prev = prev->nextSibling;
-
-                        prev->nextSibling = newItem;
-                        newItem->nextSibling = selectedItem;
-                    }
-                    newItem->parent = selectedItem->parent;
-                }
+                    InsertItemBefore(selectedItem, newItem);
                 else if (ctrlPressed)
-                {
-                    if (selectedItem->firstChild)
-                        newItem->nextSibling = selectedItem->firstChild;
-
-                    selectedItem->firstChild = newItem;
-                    newItem->parent = selectedItem;
-                }
+                    InsertItemAsFirstChild(selectedItem, newItem);
                 else
-                {
-                    Item *next = selectedItem->nextSibling;
-                    selectedItem->nextSibling = newItem;
-                    newItem->nextSibling = next;
-                    newItem->parent = selectedItem->parent;
-                }
+                    InsertItemAfter(selectedItem, newItem);
             }
 
             selectedItem = newItem;

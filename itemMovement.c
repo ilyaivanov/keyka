@@ -47,6 +47,14 @@ void InsertItemAsFirstChild(Item* parent, Item* itemToInsert)
     itemToInsert->parent = parent;
 }
 
+void InsertItemBefore(Item *beforeItem, Item *itemToInsert)
+{
+    if (beforeItem->parent->firstChild == beforeItem)
+        InsertItemAsFirstChild(beforeItem->parent, itemToInsert);
+    else
+        InsertItemAfter(GetItemPrevSibling(beforeItem), itemToInsert);
+}
+
 void InsertItemAsLastDirectChild(Item* parent, Item* itemToInsert)
 {
     Item* lastSibling = parent->firstChild;
