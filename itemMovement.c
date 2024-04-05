@@ -16,6 +16,11 @@ Item* GetItemPrevSibling(Item* item)
     return prevSibling;
 }
 
+inline bool IsRoot(Item* item)
+{
+    return !item->parent;
+}
+
 void RemoveItemFromTree(Item* item)
 {
     Item* prev = GetItemPrevSibling(item);
@@ -96,7 +101,7 @@ void MoveItemRight(Item* item)
 
 void MoveItemLeft(Item* item)
 {
-    if(item->parent->parent)
+    if(!IsRoot(item->parent))
     {
         RemoveItemFromTree(item);
         InsertItemAfter(item->parent, item);

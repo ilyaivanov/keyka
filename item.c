@@ -11,49 +11,76 @@ typedef struct ItemEntry
     u32 flags;
 } ItemEntry;
 
+typedef struct TreeIteration
+{
+    Item* stack[512];
+    u32 levels[512];
+    i32 currentItem;
+} TreeIteration;
+
+inline TreeIteration StartIteratingChildren(Item* item)
+{
+    return (TreeIteration){.stack = {item->firstChild}, .currentItem = 0};
+}
+
+Item* GetNextChild(TreeIteration* iteration)
+{
+    Item** stack = iteration->stack;
+    u32* levels = iteration->levels;
+
+    Item* item = iteration->stack[iteration->currentItem];
+
+    if (item->firstChild && !item->isClosed)
+    {
+        iteration->currentItem++;
+        stack[iteration->currentItem] = item->firstChild;
+        levels[iteration->currentItem] = levels[iteration->currentItem - 1] + 1;
+        item = item->firstChild;
+    }
+    else if (item->nextSibling)
+    {
+        item = item->nextSibling;
+        stack[iteration->currentItem] = item;
+    }
+    else
+    {
+        if (iteration->currentItem == 0)
+            item = 0;
+        else
+        {
+            iteration->currentItem--;
+            Item *itemInStack = stack[iteration->currentItem];
+            while (iteration->currentItem >= 0 && !itemInStack->nextSibling)
+            {
+                iteration->currentItem--;
+                itemInStack = stack[iteration->currentItem];
+            }
+
+            if (itemInStack && itemInStack->nextSibling)
+            {
+                item = itemInStack->nextSibling;
+                stack[iteration->currentItem] = item;
+            }
+            else
+                item = 0;
+        }
+    }
+    return item;
+}
+
 i32 ItemGetTotalChildrenCount(Item* parent)
 {
-    //Traversal
     if(!parent->firstChild)
         return 0;
 
-    Item* stack[512] = {parent->firstChild};
-    i32 currentItem = 0;
+    TreeIteration iteration = StartIteratingChildren(parent);
     i32 res = 0;
-    Item* item = stack[currentItem];
+    Item* item = iteration.stack[iteration.currentItem];
 
     while (item)
     {
         res++;
-        if (item->firstChild && !item->isClosed)
-        {
-            stack[++currentItem] = item->firstChild;
-            item = item->firstChild;
-        }
-        else if (item->nextSibling)
-        {
-            item = item->nextSibling;
-            stack[currentItem] = item;
-        }
-        else
-        {
-            if (currentItem == 0)
-                item = 0;
-            else
-            {
-                Item *itemInStack = stack[--currentItem];
-                while (currentItem >= 0 && !itemInStack->nextSibling)
-                    itemInStack = stack[--currentItem];
-
-                if (itemInStack && itemInStack->nextSibling)
-                {
-                    item = itemInStack->nextSibling;
-                    stack[currentItem] = item;
-                }
-                else
-                    item = 0;
-            }
-        }
+        item = GetNextChild(&iteration);
     }
 
     return res;
@@ -141,15 +168,12 @@ void SaveStateIntoFile(Item* root, char* path)
 {
     StringBuffer s = StringBufferEmptyWithCapacity(256);
 
-    //Traversal
-    Item* stack[512] = {root->firstChild};
-    i32 stackLevels[512] = {0};
-    i32 currentItem = 0;
+    TreeIteration iteration = StartIteratingChildren(root);
 
-    Item* item = stack[currentItem];
+    Item* item = iteration.stack[iteration.currentItem];
     while(item)
     {
-        for(int i = 0; i < stackLevels[currentItem]; i++)
+        for(int i = 0; i < iteration.levels[iteration.currentItem]; i++)
         {
             InsertCharAtEnd(&s, ' ');
             InsertCharAtEnd(&s, ' ');
@@ -158,33 +182,7 @@ void SaveStateIntoFile(Item* root, char* path)
         InsertCharAtEnd(&s, '\r');
         InsertCharAtEnd(&s, '\n');
 
-        if(item->firstChild)
-        {
-            stack[++currentItem] = item->firstChild;
-            stackLevels[currentItem] = stackLevels[currentItem - 1] + 1;
-            item = item->firstChild;
-        }
-        else if(item->nextSibling)
-        {
-            item = item->nextSibling;
-            stack[currentItem] = item;
-        }
-        else
-        {
-            Item* itemInStack = stack[--currentItem];
-            while(currentItem >= 0 && !itemInStack->nextSibling)
-                itemInStack = stack[--currentItem];
-
-                
-            if(itemInStack && itemInStack->nextSibling)
-            {
-                item = itemInStack->nextSibling;
-                stack[currentItem] = item;
-            }
-            else 
-                item = 0;
-
-        }
+        item = GetNextChild(&iteration);
     }
 
     WriteMyFile(path, s.content, s.size);

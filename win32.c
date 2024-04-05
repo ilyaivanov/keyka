@@ -29,7 +29,7 @@ HWND OpenWindow(WNDPROC OnEvent, u32 color)
 
     HWND window = CreateWindowW(windowClass.lpszClassName, (wchar_t *)"Editor", 
                                 WS_OVERLAPPEDWINDOW,
-                                CW_USEDEFAULT,CW_USEDEFAULT,CW_USEDEFAULT,CW_USEDEFAULT,
+                                20,20,400,1200,
                                 0, 0, instance, 0);
 
     BOOL USE_DARK_MODE = TRUE;
