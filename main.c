@@ -45,6 +45,7 @@ V2i screenOffset;
 V2i mouse;
 bool isMovingViaMouse = 0;
 
+Arena arena;
 Item root;
 Item* selectedItem;
 
@@ -53,6 +54,7 @@ i32 ignoreNextCharEvent = 0;
 
 u32 cursorPosition = 0;
 i32 ctrlPressed = 0;
+i32 isShiftPressed = 0;
 
 BITMAPINFO bitmapInfo;
 
@@ -172,6 +174,95 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
                 case VK_RETURN: 
                     if(mode == ModeInsert)
                         mode = ModeNormal;
+                break;
+                case 'D':
+                    if (mode == ModeNormal)
+                    {
+                        // how do I free memory in arena such that it is usable
+                        // this is a memory leak currently, but in linear arena I have no easy way to handle this now
+                        if (selectedItem->parent->firstChild == selectedItem)
+                        {
+                            if (selectedItem->parent->firstChild->nextSibling)
+                            {
+                                selectedItem->parent->firstChild = selectedItem->parent->firstChild->nextSibling;
+                                selectedItem = selectedItem->parent->firstChild;
+                            }
+                            else
+                            {
+                                selectedItem->parent->firstChild = 0;
+                                selectedItem = selectedItem->parent;
+                            }
+                        }
+                        else
+                        {
+                            Item *prev = selectedItem->parent->firstChild;
+                            while (prev->nextSibling != selectedItem)
+                                prev = prev->nextSibling;
+
+                            prev->nextSibling = selectedItem->nextSibling;
+
+                            if (selectedItem->nextSibling)
+                                selectedItem = selectedItem->nextSibling;
+                            else
+                                selectedItem = prev;
+                        }
+                    }
+                break;
+                case 'O':
+                    if(mode == ModeNormal)
+                    {
+                        Item* newItem = (Item*) ArenaPush(&arena, sizeof(Item));
+                        newItem->title = StringBufferEmptyWithCapacity(4);
+                        if(selectedItem == &root)
+                        {
+                            root.firstChild = newItem;
+                        }
+                        else 
+                        {
+                            if(isShiftPressed)
+                            {
+                                if(selectedItem->parent->firstChild == selectedItem)
+                                {
+                                    Item* first = selectedItem->parent->firstChild;
+                                    selectedItem->parent->firstChild = newItem;
+                                    newItem->nextSibling = first;
+                                }
+                                else 
+                                {
+                                    Item* prev = selectedItem->parent->firstChild;
+                                    while(prev->nextSibling != selectedItem)
+                                        prev = prev->nextSibling;
+
+                                    prev->nextSibling = newItem;
+                                    newItem->nextSibling = selectedItem;
+                                }
+                                newItem->parent = selectedItem->parent;
+                            }
+                            else if(ctrlPressed)
+                            {
+                                if(selectedItem->firstChild)
+                                    newItem->nextSibling = selectedItem->firstChild;
+
+                                selectedItem->firstChild = newItem;
+                                newItem->parent = selectedItem;
+                            }
+                            else
+                            {
+                                Item* next = selectedItem->nextSibling;
+                                selectedItem->nextSibling = newItem;
+                                newItem->nextSibling = next;
+                                newItem->parent = selectedItem->parent;
+                            }
+                        }
+
+
+                        selectedItem = newItem;
+
+                        cursorPosition = 0;
+                        mode = ModeInsert;
+
+                        ignoreNextCharEvent = 1;
+                    }
                 break;
                 case 'W': 
                     if((mode == ModeNormal || ctrlPressed))
@@ -451,7 +542,7 @@ void WinMainCRTStartup()
 
     HWND window = OpenWindow(OnEvent, 0x222222);
     HDC dc = GetDC(window);
-    Arena arena = CreateArena(Megabytes(54));
+    arena = CreateArena(Megabytes(54));
 
     InitFontSystem();
     InitFont(&consolasFont14, FontInfoClearType("Consolas", 14, 0xfff0f0f0, 0x00000000), &arena);
@@ -474,13 +565,19 @@ void WinMainCRTStartup()
         {
             TranslateMessage(&msg);
 
-            if ((msg.message == WM_KEYDOWN || msg.message == WM_SYSKEYDOWN) && msg.wParam == VK_CONTROL)
+            if (msg.message == WM_KEYDOWN || msg.message == WM_SYSKEYDOWN)
             {
-                ctrlPressed = 1;
+                if(msg.wParam == VK_CONTROL)
+                    ctrlPressed = 1;
+                else if(msg.wParam == VK_SHIFT)
+                    isShiftPressed = 1;
             }
-            if ((msg.message == WM_KEYUP || msg.message == WM_SYSKEYUP) && msg.wParam == VK_CONTROL)
+            if (msg.message == WM_KEYUP || msg.message == WM_SYSKEYUP)
             {
-                ctrlPressed = 0;
+                if(msg.wParam == VK_CONTROL)
+                    ctrlPressed = 0;
+                else if(msg.wParam == VK_SHIFT)
+                    isShiftPressed = 0;
             }
             DispatchMessageA(&msg);
         }
