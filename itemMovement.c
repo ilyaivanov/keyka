@@ -18,44 +18,47 @@ Item* GetItemPrevSibling(Item* item)
 
 void RemoveItemFromTree(Item* item)
 {
-
+    Item* prev = GetItemPrevSibling(item);
+    
+    if(prev)
+        prev->nextSibling = item->nextSibling;
+    else 
+        item->parent->firstChild = item->nextSibling;
 }
 
 void InsertItemAfter(Item* afterItem, Item* itemToInsert)
 {
-
-}
-
-void InsertItemBefore(Item* beforeItem, Item* itemToInsert)
-{
-    
+    Item* next = afterItem->nextSibling;
+    afterItem->nextSibling = itemToInsert;
+    itemToInsert->nextSibling = next;
+    itemToInsert->parent = afterItem->parent;
 }
 
 void InsertItemAsFirstChild(Item* parent, Item* itemToInsert)
 {
-    
+    Item* first = parent->firstChild;
+    parent->firstChild = itemToInsert;
+    itemToInsert->nextSibling = first;
+    itemToInsert->parent = parent;
 }
 
 void InsertItemAsLastDirectChild(Item* parent, Item* itemToInsert)
 {
-    
+    Item* lastSibling = parent->firstChild;
+    while(lastSibling->nextSibling)
+        lastSibling = lastSibling->nextSibling;
+
+    InsertItemAfter(lastSibling, itemToInsert);
 }
 
 
 void MoveItemDown(Item* item)
 {
-    if(item->nextSibling)
-    {
-        Item* prev = GetItemPrevSibling(item);
-        Item* tmp = item->nextSibling;
-        item->nextSibling = tmp->nextSibling;
-        tmp->nextSibling = item;
+    if(!item->nextSibling)
+        return;
 
-        if(prev)
-            prev->nextSibling = tmp;
-        else 
-            item->parent->firstChild = tmp;
-    }
+    RemoveItemFromTree(item);
+    InsertItemAfter(item->nextSibling, item);
 }
 
 void MoveItemUp(Item* item)
@@ -66,19 +69,11 @@ void MoveItemUp(Item* item)
         if(prev)
         {
             Item* prevPrev = GetItemPrevSibling(prev);
+            RemoveItemFromTree(item);
             if(prevPrev)
-            {
-                prevPrev->nextSibling = item;
-                prev->nextSibling = item->nextSibling;
-                item->nextSibling = prev;
-            }
+                InsertItemAfter(prevPrev, item);
             else 
-            {
-                Item* first = item->parent->firstChild;
-                item->parent->firstChild = item;
-                first->nextSibling = item->nextSibling;
-                item->nextSibling = first;
-            }
+                InsertItemAsFirstChild(item->parent, item);
         }
     }
 }
@@ -90,23 +85,11 @@ void MoveItemRight(Item* item)
         Item* prev = GetItemPrevSibling(item);
         if(prev)
         {
+            RemoveItemFromTree(item);
             if(prev->firstChild)
-            {
-                Item* lastSibling = prev->firstChild;
-                while(lastSibling->nextSibling)
-                    lastSibling = lastSibling->nextSibling;
-
-                lastSibling->nextSibling = item;
-                item->parent = lastSibling->parent;
-            }
+                InsertItemAsLastDirectChild(prev, item);
             else 
-            {
-                prev->firstChild = item;
-                item->parent = prev;
-            }
-
-            prev->nextSibling = item->nextSibling;
-            item->nextSibling = 0;
+                InsertItemAsFirstChild(prev, item);
         }
     }
 }
@@ -115,17 +98,7 @@ void MoveItemLeft(Item* item)
 {
     if(item->parent->parent)
     {
-        Item* prev = GetItemPrevSibling(item);
-        if(prev)
-            prev->nextSibling = item->nextSibling;
-        else if(item->nextSibling)
-            item->parent->firstChild = item->nextSibling;
-        else 
-            item->parent->firstChild = 0;
-
-        Item* next = item->parent->nextSibling;
-        item->parent->nextSibling = item;
-        item->nextSibling = next;
-        item->parent = item->parent->parent;
+        RemoveItemFromTree(item);
+        InsertItemAfter(item->parent, item);
     }
 }
