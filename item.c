@@ -50,7 +50,7 @@ Item* GetNextChild(TreeIteration* iteration)
         {
             iteration->currentItem--;
             Item *itemInStack = stack[iteration->currentItem];
-            while (iteration->currentItem >= 0 && !itemInStack->nextSibling)
+            while (iteration->currentItem > 0 && !itemInStack->nextSibling)
             {
                 iteration->currentItem--;
                 itemInStack = stack[iteration->currentItem];
@@ -118,7 +118,7 @@ void ParseFileContent(Item *root, StringBuffer file, Arena* arena)
         }
         else if (i == file.size - 1)
         {
-            ItemEntry entry = {.start = lineStart, .end = i, .level = currentLevel };
+            ItemEntry entry = {.start = lineStart + currentLevel, .end = i, .level = currentLevel };
             slices[slicesCount++] = entry;
         }
     }

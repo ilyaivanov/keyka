@@ -120,7 +120,10 @@ inline void OnKeyDown(HWND window, char key)
     case VK_ESCAPE:
     case VK_RETURN:
         if (mode == ModeInsert)
+        {
+
             mode = ModeNormal;
+        }
         break;
     case 'D':
         if (mode == ModeNormal)
@@ -447,21 +450,20 @@ void ReportAt(i32 rowIndex, char* label, u32 val, char* metric)
 void DrawTree(Item* root)
 {
     currentFont = &segoeUiFont14;
-    i32 step = PX(20);
-    i32 padding = PX(30);
-    i32 y = padding;
-    i32 iconSize = PX(6);
-    i32 iconToTextSpace = PX(6);
+    f32 step = PX(20);
+    f32 padding = PX(30);
+    f32 y = padding;
+    f32 iconSize = PX(6);
+    f32 iconToTextSpace = PX(6);
     f32 lineHeight = 1.3f;
-    i32 squareToLine = PX(10);
+    f32 squareToLine = PX(10);
 
-    Item* current = root->firstChild;
-    Item* stack[256] = {root};
-    i32 currentItem = 0;
+    TreeIteration iteration = StartIteratingChildren(root);
+    Item* current = iteration.stack[iteration.currentItem];
 
     while(current)
     {
-        i32 x = padding + currentItem * step;
+        f32 x = padding + iteration.levels[iteration.currentItem] * step;
         u32 activeColor = mode == ModeNormal ?  0xaaffaa : 0xffaaaa;
         u32 rectColor = current == selectedItem ? activeColor : 0xaaaaaa;
         PaintRect(&canvas, x - iconSize / 2, y - iconSize / 2, iconSize, iconSize, rectColor);
@@ -472,8 +474,13 @@ void DrawTree(Item* root)
             f32 b2 = border * 2;
             PaintRect(&canvas, x - iconSize / 2 + border, y - iconSize / 2 + border, iconSize - b2, iconSize - b2, 0x000000);
         }
+        else if(!current->isClosed)
+        {
+            f32 childrenLineHeight = currentFont->charHeight * lineHeight * ItemGetTotalChildrenCount(current);
+            PaintRect(&canvas, x - 1, y + iconSize / 2 + 1, 2, (i32)childrenLineHeight, 0x333333);
+        }
 
-        i32 textX = x + iconSize / 2 + iconToTextSpace;
+        f32 textX = x + iconSize / 2 + iconToTextSpace;
 
         if(current == selectedItem)
         {
@@ -487,25 +494,7 @@ void DrawTree(Item* root)
 
         DrawLabelMiddleLeft(textX, y, current->title.content, selectedItem == current ? cursorPosition : -1);
 
-        if(current->firstChild && !current->isClosed)
-        {
-            i32 childrenCount = ItemGetTotalChildrenCount(current);
-            
-            PaintRect(&canvas, x - 1, y + iconSize / 2 + squareToLine, PX(2), currentFont->charHeight * lineHeight * childrenCount, 0x333333);
-
-            stack[++currentItem] = current;
-            current = current->firstChild;
-        } else if (current->nextSibling)
-        {
-            current = current->nextSibling;
-        } else 
-        {
-            Item* itemInStack = stack[currentItem--]->nextSibling;
-            while(!itemInStack && currentItem >= 0)
-                itemInStack = stack[currentItem--]->nextSibling;
-            
-            current = itemInStack;
-        }
+        current = GetNextChild(&iteration);
 
         y += currentFont->charHeight * lineHeight;
     }
