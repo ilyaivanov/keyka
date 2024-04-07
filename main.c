@@ -13,6 +13,7 @@
 
 #include "performance.c"
 #include "rendering.c"
+#include "undoRedo.c"
 
 #define FILE_PATH "../tasks.txt"
 
@@ -58,6 +59,9 @@ u32 cursorPosition = 0;
 i32 ctrlPressed = 0;
 i32 isShiftPressed = 0;
 i32 isAltPressed = 0;
+
+ChangeHistory history;
+StringBuffer insertingAtStr;
 
 BITMAPINFO bitmapInfo;
 
@@ -137,7 +141,7 @@ inline void OnKeyDown(HWND window, char key)
             if (nextWord >= 0)
                 cursorPosition = nextWord + 1;
             else
-                cursorPosition = selectedItem->title.size - 1;
+                cursorPosition = selectedItem->title.size;
         }
         break;
     case 'B':
@@ -171,17 +175,27 @@ inline void OnKeyDown(HWND window, char key)
             RemoveCharAt(&selectedItem->title, cursorPosition);
         }
         break;
+    // case 'U':
+    //     if ((mode == ModeNormal || ctrlPressed) && cursorPosition < selectedItem->title.size)
+    //     {
+    //         RemoveCharAt(&selectedItem->title, cursorPosition);
+    //     }
+    //     break;
     case 'U':
-        if ((mode == ModeNormal || ctrlPressed) && cursorPosition < selectedItem->title.size)
+        if(mode == ModeNormal)
         {
-            RemoveCharAt(&selectedItem->title, cursorPosition);
+            if(isShiftPressed)
+                RedoLastChange(&history);
+            else 
+                UndoLastChange(&history);
         }
-        break;
+    break;
     case 'I':
         if (mode == ModeNormal)
         {
             mode = ModeInsert;
             ignoreNextCharEvent = 1;
+            BeforeRenameItem(&history, selectedItem);
         }
         break;
     case 'E':
@@ -482,6 +496,7 @@ void WinMainCRTStartup()
     timeBeginPeriod(1);
 
     arena = CreateArena(Megabytes(54));
+
 
     InitFontSystem();
     InitFont(&consolasFont14, FontInfoClearType("Consolas", 14, 0xfff0f0f0, 0x00000000), &arena);
