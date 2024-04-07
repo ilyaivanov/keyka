@@ -12,6 +12,7 @@
 #include "itemMovement.c"
 
 #include "performance.c"
+#include "rendering.c"
 
 #define FILE_PATH "../tasks.txt"
 
@@ -60,45 +61,6 @@ i32 isAltPressed = 0;
 
 BITMAPINFO bitmapInfo;
 
-inline void CopyBitmapRectTo(MyBitmap *sourceT, MyBitmap *destination, u32 offsetX, u32 offsetY)
-{
-    u32 *row = (u32 *)destination->pixels + destination->width * (destination->height - 1) + offsetX - offsetY * destination->width;
-    u32 *source = (u32 *)sourceT->pixels + sourceT->width * (sourceT->height - 1);
-    for (u32 y = 0; y < sourceT->height; y += 1)
-    {
-        u32 *pixel = row;
-        u32 *sourcePixel = source;
-        for (u32 x = 0; x < sourceT->width; x += 1)
-        {
-            //stupid fucking logic needs to replaced
-            if(*sourcePixel != 0xff000000 && (y + offsetY) > 0 && (x + offsetX) > 0 && y + offsetY < destination->height && x + offsetX < destination->width)
-                *pixel = *sourcePixel;
-            sourcePixel += 1;
-            pixel += 1;
-            
-        }
-        source -= sourceT->width;
-        row -= destination->width;
-    }
-}
-
-inline void PaintRect(MyBitmap *destination, i32 offsetX, i32 offsetY, u32 width, u32 height, u32 color)
-{
-    // need to check bounds of the screen
-    u32 *row = (u32 *)destination->pixels + destination->width * (destination->height - 1) + offsetX - offsetY * destination->width;
-    for (i32 y = 0; y < height; y += 1)
-    {
-        u32 *pixel = row;
-        for (i32 x = 0; x < width; x += 1)
-        {
-            if((y + offsetY) > 0 && (x + offsetX) > 0 && y + offsetY < destination->height && x + offsetX < destination->width)
-                *pixel = color;
-            pixel += 1;
-            
-        }
-        row -= destination->width;
-    }
-}
 
 void ChangeSelection(Item* item)
 {
@@ -333,6 +295,7 @@ inline void OnKeyDown(HWND window, char key)
     }
 }
 
+void DrawTree(Item* root);
 LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch(message){
@@ -369,6 +332,12 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
             if(canvas.pixels)
                 VirtualFreeMemory(canvas.pixels);
             canvas.pixels = VirtualAllocateMemory(sizeof(u32) * screenWidth * screenHeight);
+    
+            workingCanvas = &canvas;
+
+            DrawTree(&root);
+            StretchDIBits(dc, 0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, canvas.pixels, &bitmapInfo, DIB_RGB_COLORS, SRCCOPY);
+
         break;
 
         case WM_CHAR: 
@@ -400,17 +369,17 @@ void DrawLabelMiddleLeft(i32 x, i32 y, char* label, i32 cursorPos)
     while (*ch)
     {
         MyBitmap *texture = &currentFont->textures[*ch];
-        CopyBitmapRectTo(texture, &canvas, x, middleY);
+        DrawBitmap(texture, x, middleY);
 
         if(cursorPos == i)
-            PaintRect(&canvas, x - 1, y - currentFont->charHeight / 2 - 3, 2, currentFont->charHeight, activeColor);
+            PaintRect(x - 1, y - currentFont->charHeight / 2 - 3, 2, currentFont->charHeight, activeColor);
 
         x += texture->width + GetKerningValue(*ch, *(ch + 1));
         ch++;
         i++;
     }
     if(cursorPos == i)
-        PaintRect(&canvas, x - 1, y - currentFont->charHeight / 2 - 3, 2, currentFont->charHeight, activeColor);
+        PaintRect(x - 1, y - currentFont->charHeight / 2 - 3, 2, currentFont->charHeight, activeColor);
 }
 
 void ReportAt(i32 rowIndex, char* label, u32 val, char* metric)
@@ -441,7 +410,7 @@ void ReportAt(i32 rowIndex, char* label, u32 val, char* metric)
     while (*ch)
     {
         MyBitmap *texture = &currentFont->textures[*ch];
-        CopyBitmapRectTo(texture, &canvas, x, y);
+        DrawBitmap(texture, x, y);
         ch++;
         x += currentFont->charWidth;
     }
@@ -451,9 +420,11 @@ void DrawTree(Item* root)
 {
     currentFont = &segoeUiFont14;
     f32 step = PX(20);
-    f32 padding = PX(30);
+
+    f32 padding = 20;
+
     f32 y = padding;
-    f32 iconSize = PX(6);
+    f32 iconSize = 10;
     f32 iconToTextSpace = PX(6);
     f32 lineHeight = 1.3f;
     f32 squareToLine = PX(10);
@@ -466,18 +437,18 @@ void DrawTree(Item* root)
         f32 x = padding + iteration.levels[iteration.currentItem] * step;
         u32 activeColor = mode == ModeNormal ?  0xaaffaa : 0xffaaaa;
         u32 rectColor = current == selectedItem ? activeColor : 0xaaaaaa;
-        PaintRect(&canvas, x - iconSize / 2, y - iconSize / 2, iconSize, iconSize, rectColor);
+        PaintSquareCentered(x, y, iconSize, rectColor);
 
         if(!current->firstChild)
         {
-            f32 border = (1);
-            f32 b2 = border * 2;
-            PaintRect(&canvas, x - iconSize / 2 + border, y - iconSize / 2 + border, iconSize - b2, iconSize - b2, 0x000000);
+            f32 border = 1;
+            PaintSquareCentered(x, y, iconSize - border * 2, 0x000000);
         }
         else if(!current->isClosed)
         {
+            f32 lineW = 2;
             f32 childrenLineHeight = currentFont->charHeight * lineHeight * ItemGetTotalChildrenCount(current);
-            PaintRect(&canvas, x - 1, y + iconSize / 2 + 1, 2, (i32)childrenLineHeight, 0x333333);
+            PaintRect(x - lineW / 2, y + (currentFont->charHeight * lineHeight / 2), lineW, childrenLineHeight, 0x333333);
         }
 
         f32 textX = x + iconSize / 2 + iconToTextSpace;
@@ -504,13 +475,12 @@ void DrawTree(Item* root)
     DrawLabelMiddleLeft(canvas.width / 2, canvas.height - currentFont->charHeight / 2, state, -1);
 }
 
+
 void WinMainCRTStartup()
 {
     PreventWindowsDPIScaling();
     timeBeginPeriod(1);
 
-    HWND window = OpenWindow(OnEvent, 0x222222);
-    HDC dc = GetDC(window);
     arena = CreateArena(Megabytes(54));
 
     InitFontSystem();
@@ -520,9 +490,11 @@ void WinMainCRTStartup()
     InitFont(&segoeUiFont14SelectedInsert, FontInfoClearType("Segoe UI", 13, 0xffb0b0ff, 0x00000000), &arena);
     InitFont(&segoeUiFont14Background, FontInfoClearType("Segoe UI", 13, 0xff808080, 0x00000000), &arena);
 
+    HWND window = OpenWindow(OnEvent, 0x222222);
+    HDC dc = GetDC(window);
+
     MSG msg;
     InitPerf();
-
 
     StringBuffer file = ReadFileIntoDoubledSizedBuffer(FILE_PATH);
     ParseFileContent(&root, file, &arena);
@@ -592,7 +564,7 @@ void WinMainCRTStartup()
 
         //TODO: proper sleep timing, currently just burning the CPU, dont forget about timeBeginPeriod
         StartMetric(SleepMetric);
-        Sleep(10);
+        // Sleep(4);
         EndMetric(SleepMetric);
     }
 

@@ -4,12 +4,7 @@
 #include "types.h"
 #include "win32.c"
 #include "arena.c"
-
-// this dependency is questionable
-// #include <gl/gl.h>
-
-// this dependency is questionable
-// #include "layout.c"
+#include "rendering.c"
 
 #define MAX_CHAR_CODE 126
 
@@ -43,8 +38,6 @@ inline FontInfo FontInfoAntialiased(char* name, i32 size)
 typedef struct FontData 
 {
     MyBitmap textures[MAX_CHAR_CODE];
-    // GLuint cachedTextures[MAX_CHAR_CODE];
-
     // Need to use ABC structure for this 
     // https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-getcharabcwidthsa
 
@@ -76,43 +69,22 @@ inline int HashAndProbeIndex(const FontData *font, u16 left, u16 right)
     return index;
 }
 
-
-// takes dimensions of destinations, reads rect from source at (0,0)
-inline void CopyRectTo(MyBitmap *sourceT, MyBitmap *destination, FontInfo info)
+inline void CopyRectTo(MyBitmap *source, MyBitmap *destination)
 {
-    u32 *row = (u32 *)destination->pixels + destination->width * (destination->height - 1);
-    u32 *source = (u32 *)sourceT->pixels + sourceT->width * (sourceT->height - 1);
+    u32 *destRow = (u32 *)destination->pixels;
+    u32 *sourceRow = (u32 *)source->pixels;
     for (u32 y = 0; y < destination->height; y += 1)
     {
-        u32 *pixel = row;
-        u32 *sourcePixel = source;
         for (u32 x = 0; x < destination->width; x += 1)
         {
-            // u8 r = (*sourcePixel & 0xff0000) >> 16;
-            // u8 g = (*sourcePixel & 0x00ff00) >> 8;
-            // u8 b = (*sourcePixel & 0x0000ff) >> 0;
-            
-            if(info.isClearType)
-            {
-                u32 alpha = 0xff000000;
-                // u32 alpha = *sourcePixel == info.background ? 0x00000000 : 0xff000000;
-                *pixel = *sourcePixel | alpha;
-                
-            } else 
-            {
-                //taking one channel and making alpha as a difference. I assume all colors are grey if not clear type. Black bg is also assumed
-                u32 alpha = (*sourcePixel & 0xff) << 24;
-                // u32 alpha = *sourcePixel == info.background ? 0x00000000 : 0xff000000;
-                *pixel = *sourcePixel | alpha;
-            }
-            sourcePixel += 1;
-            pixel += 1;
-            
+            u32 alpha = 0xff000000;
+            *(destRow + x) = *(sourceRow + x) | alpha;
         }
-        source -= sourceT->width;
-        row -= destination->width;
+        sourceRow += source->width;
+        destRow += destination->width;
     }
 }
+
 HDC deviceContext;
 MyBitmap fontCanvas;
 HBITMAP bitmap;
@@ -192,43 +164,8 @@ void InitFontData(FontData *fontData, FontInfo fontInfo, Arena* arena)
 
         texture->pixels = (u32*) ArenaPush(arena, texture->height * texture->width * texture->bytesPerPixel);
 
-        CopyRectTo(&fontCanvas, texture, fontInfo);
+        CopyRectTo(&fontCanvas, texture);
     }
-
-    {
-        wchar_t dotCh = 0xb7; //·
-        int len = 1;
-        GetTextExtentPoint32W(deviceContext, &dotCh, len, &size);
-
-        TextOutW(deviceContext, 0, 0, &dotCh, len);
-
-        MyBitmap *texture = &fontData->textures[1];
-        texture->width = size.cx;
-        texture->height = size.cy;
-        texture->bytesPerPixel = 4;
-
-        texture->pixels = (u32*) ArenaPush(arena, texture->height * texture->width * texture->bytesPerPixel);
-
-        CopyRectTo(&fontCanvas, texture, fontInfo);
-    }
-
-    {
-        wchar_t dotCh = 0x00B6; //¶
-        int len = 1;
-        GetTextExtentPoint32W(deviceContext, &dotCh, len, &size);
-
-        TextOutW(deviceContext, 0, 0, &dotCh, len);
-
-        MyBitmap *texture = &fontData->textures[2];
-        texture->width = size.cx;
-        texture->height = size.cy;
-        texture->bytesPerPixel = 4;
-
-        texture->pixels = (u32*) ArenaPush(arena, texture->height * texture->width * texture->bytesPerPixel);
-
-        CopyRectTo(&fontCanvas, texture, fontInfo);
-    }
-
 
     GetTextMetricsA(deviceContext, &fontData->textMetric);
 

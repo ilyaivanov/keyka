@@ -9,7 +9,7 @@ void InitBitmapInfo(BITMAPINFO * bitmapInfo, u32 width, u32 height)
     bitmapInfo->bmiHeader.biSize = sizeof(bitmapInfo->bmiHeader);
     bitmapInfo->bmiHeader.biBitCount = 32;
     bitmapInfo->bmiHeader.biWidth = width;
-    bitmapInfo->bmiHeader.biHeight = height; // makes rows go up, instead of going down by default
+    bitmapInfo->bmiHeader.biHeight = -height; // makes rows go up, instead of going down by default
     bitmapInfo->bmiHeader.biPlanes = 1;
     bitmapInfo->bmiHeader.biCompression = BI_RGB;
 }
@@ -29,7 +29,8 @@ HWND OpenWindow(WNDPROC OnEvent, u32 color)
 
     HWND window = CreateWindowW(windowClass.lpszClassName, (wchar_t *)"Editor", 
                                 WS_OVERLAPPEDWINDOW,
-                                20,20,400,1200,
+                                CW_USEDEFAULT,CW_USEDEFAULT,CW_USEDEFAULT,CW_USEDEFAULT,
+                                // 20,20,400,1200,
                                 0, 0, instance, 0);
 
     BOOL USE_DARK_MODE = TRUE;
