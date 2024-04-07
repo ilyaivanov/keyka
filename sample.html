@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <style>
+        body {
+            margin:0;
+        }
+
+        canvas {
+            display: block;
+        }
+
+
+    </style>
+</head>
+<body>
+    <canvas id="my-canvas"></canvas>
+
+
+    <script>
+        let canvas = document.getElementById("my-canvas");
+
+        let screenWidth = window.innerWidth;
+        let screenHeight = window.innerHeight;
+        let scale = window.devicePixelRatio || 1;
+
+        canvas.style.width = `${screenWidth}px`;
+        canvas.style.height = `${screenHeight}px`;
+        canvas.width = Math.floor(screenWidth * scale);
+        canvas.height = Math.floor(screenHeight * scale);
+        
+        let ctx = canvas.getContext("2d");
+        ctx.scale(scale, scale);
+
+        let items = [
+            "2001 Reflective Frequencies",
+            "2003 Blue Moon Station",
+            "2005 Extended",
+            "2005 Leaving Home",
+            "2007 EarthShine",
+            "2009 Mirror's Edge (Solar Fields & Lisa Miskovsky)",
+            "2009 Movements",
+            "2010 Altered Second Movements",
+            "2010 Origin # 01",
+            "2011 Until We Meet The Sky",
+            "2012 Random Friday",
+            "2013 Origin # 02",
+            "2014 RED",
+            "2013 GREEN",
+            "2014 BLUE",
+            "Fahrenheit Project Part One [Full Compilation].mp4",
+            "Fahrenheit Project Part Three [Full Compilation].mp4",
+            "Global Underground 019_ Los Angeles (CD1).mp4",
+            "Global Underground 019_ Los Angeles (CD2).mp4",
+            "Liquid Drum and Bass Mix #60.mp4",
+            "Liquid Drum and Bass Mix #104.mp4",
+            "Metallica - St Anger [Full Album _ HQ].mp4",
+            "Minimal Deep Tech House Mix _ Deezy _ All Bout Deez House.mp4",
+            "Slipknot - Iowa (Full Album).mp4",
+            "The Anjunadeep Edition 229 with James Grant.mp4",
+            "The Best Of Boards Of Canada.mp4",
+            "The Crystal Method - Legion of Boom [Full Album].mp4",
+            "The Crystal Method ▶ Tweekend (Full Album).mp4",
+            "The Crystal Method ▶ Vegas…(Full Album).mp4",
+            "Trance to Study By_ All-Nighter.mp3",
+            "Best of Carbon Based Lifeforms.mp4",
+            "Fahrenheit Project Part Four [Full Compilation].mp4            ",
+        ]
+
+        let iconSize = 10 / 1.5;
+        let iconSizeHalf = iconSize / 2;
+
+
+        let lineHeight = 1.3;
+
+
+        ctx.font = "13px Segoe UI";
+        ctx.textBaseline  = "middle";
+
+        let measurement = ctx.measureText("foo");
+        let fontHeight = measurement.fontBoundingBoxDescent + measurement.fontBoundingBoxAscent;
+
+        let appTime = 0;
+
+        function render()
+        {
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, 100000, 1000000);
+
+            let x = Math.sin(appTime / 1000) * 60;
+            let y = Math.cos(appTime / 1000) * 60;
+            for(let item of items)
+            {
+                ctx.fillStyle = "#aaaaaa";
+                ctx.fillRect(x - iconSizeHalf, y - iconSizeHalf, iconSize, iconSize);
+                ctx.fillStyle = "#000000";
+                ctx.fillRect(x - iconSizeHalf + 1, y - iconSizeHalf + 1, iconSize - 2, iconSize - 2);
+                
+                
+                let textX = x + iconSizeHalf + 9;
+                ctx.fillStyle = "#f0f0f0";
+                ctx.fillText(item, textX, y);
+                
+                y += fontHeight * lineHeight;
+            }
+        }
+
+
+        
+        function onTick(time)
+        {
+            appTime = time;
+            render();
+            requestAnimationFrame(onTick);
+        }
+        
+        requestAnimationFrame(onTick);
+
+
+    </script>
+</body>
+</html>
