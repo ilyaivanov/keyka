@@ -2,17 +2,34 @@
 
 #include "types.h"
 #include "arena.c"
+#include "itemMovement.c"
 
 typedef enum ChangeType
 {
-    Rename, Remove, Move, Create
+    Rename, RemoveCharAtChange, Remove, Move, Create
 } ChangeType;
 
 typedef struct Change
 {
     ChangeType type;
-    StringBuffer oldTitle;
-    StringBuffer newTitle;
+    union
+    {
+        struct Rename 
+        {
+            StringBuffer oldTitle;
+            StringBuffer newTitle;
+        } rename;
+        struct RemoveCharAt2
+        {
+            char ch;
+            u32 at;
+        } removeCharAt2;
+        struct RemovedItem 
+        {
+            Item* parent;
+            u32 position;
+        } removedItem;
+    };
     Item* item;
 } Change;
 
@@ -35,11 +52,35 @@ void BeforeRenameItem(ChangeHistory* history, Item* item)
     Change* change = &history->changes[history->currentChange++];
     history->totalChanges = history->currentChange;
     change->item = item;
-    change->oldTitle.content = VirtualAllocateMemory(item->title.capacity);
-    change->oldTitle.capacity = item->title.capacity;
-    change->oldTitle.size = item->title.size;
-    change->newTitle = item->title;
-    memcpy(change->oldTitle.content, item->title.content, item->title.capacity);
+    change->type = Rename;
+
+    change->rename.oldTitle.content = VirtualAllocateMemory(item->title.capacity);
+    change->rename.oldTitle.capacity = item->title.capacity;
+    change->rename.oldTitle.size = item->title.size;
+    change->rename.newTitle = item->title;
+    memcpy(change->rename.oldTitle.content, item->title.content, item->title.capacity);
+}
+
+void OnItemRemoved(ChangeHistory* history, Item* item)
+{
+    Change* change = &history->changes[history->currentChange++];
+    history->totalChanges = history->currentChange;
+    change->item = item;
+
+    change->type = Remove;
+
+    change->removedItem.parent = item->parent;
+
+    u32 position = 0;
+    Item* childs = item->parent->firstChild;
+    while(childs != item)
+    {
+        childs = childs->nextSibling;
+        position++;
+    }
+
+    change->removedItem.position = position;
+
 }
 
 void UndoLastChange(ChangeHistory* history)
@@ -48,8 +89,29 @@ void UndoLastChange(ChangeHistory* history)
     {
         Change* change = &history->changes[--history->currentChange];
 
-        //TODO: memory leak - newTitle will be lost on next BeforeRenameItem call
-        change->item->title = change->oldTitle;
+        if(change->type == Rename)
+        {
+            //TODO: memory leak - newTitle will be lost on next BeforeRenameItem call
+            change->item->title = change->rename.oldTitle;
+        } else if (change->type == Remove)
+        {
+            if(change->removedItem.position == 0)
+            {
+                InsertItemAsFirstChild(change->item->parent, change->item);
+            }else 
+            {
+                u32 pos = change->removedItem.position;
+
+                Item* prev = change->item->parent->firstChild;
+
+                while(pos > 1)
+                {
+                    prev = prev->nextSibling;
+                    pos--;
+                }
+                InsertItemAfter(prev, change->item);
+            }
+        }
     }
 }
 
@@ -59,8 +121,15 @@ void RedoLastChange(ChangeHistory* history)
     {
         Change* change = &history->changes[history->currentChange++];
         
-        //TODO: memory leak - oldTitle will be lost on next BeforeRenameItem call
-        change->item->title = change->newTitle;
+        if(change->type == Rename)
+        {
+            //TODO: memory leak - oldTitle will be lost on next BeforeRenameItem call
+            change->item->title = change->rename.newTitle;
+        } else if (change->type == Remove)
+        {
+            //TODO: think about how to change selectedItem from here
+            RemoveItemFromTree(change->item);
+        }
     }
 }
 

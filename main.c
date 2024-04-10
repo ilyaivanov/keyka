@@ -96,6 +96,8 @@ inline void OnKeyDown(HWND window, char key)
         {
             // how do I free memory in arena such that it is usable
             // this is a memory leak currently, but in linear arena I have no easy way to handle this now
+            OnItemRemoved(&history, selectedItem);
+            
             Item* prev = GetItemPrevSibling(selectedItem);
             RemoveItemFromTree(selectedItem);
 
